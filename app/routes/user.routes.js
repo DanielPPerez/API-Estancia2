@@ -1,5 +1,13 @@
 const { authJwt } = require("../middleware");
 const controller = require("../controllers/user.controller");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+
+const multipleUpload = upload.fields([
+  { name: "fichaTecnica", maxCount: 1 },
+  { name: "modeloCanva", maxCount: 1 },
+  { name: "pdfProyecto", maxCount: 1 },
+]);
 
 module.exports = function (app) {
   app.use(function (req, res, next) {
@@ -29,7 +37,7 @@ module.exports = function (app) {
   // Nueva ruta para subir proyectos
   app.post(
     "/api/app/uploadProject",
-    [authJwt.verifyToken],
+    [authJwt.verifyToken, multipleUpload],
     controller.uploadProject
   );
 };

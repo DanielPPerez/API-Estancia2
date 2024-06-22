@@ -1,3 +1,6 @@
+const db = require("../models");
+const { proyecto: Proyecto } = db;
+
 exports.allAccess = (req, res) => {
   res.status(200).send("Public Content.");
 };
@@ -15,27 +18,27 @@ exports.moderatorBoard = (req, res) => {
 };
 
 exports.uploadProject = (req, res) => {
-  // Aquí puedes procesar la subida del proyecto
   const userId = req.userId; // Este ID proviene del token
-  const {
-    projectName,
-    projectDescription,
-    videoLink,
-    technicalSheet,
-    canvaModel,
-    projectPdf,
-  } = req.body;
+  const { nombreProyecto, descripcion, videoPitch } = req.body;
 
-  // Guarda el proyecto en la base de datos, asociándolo con userId
-  // Ejemplo:
-  Project.create({
-    userId: userId,
-    name: projectName,
-    description: projectDescription,
-    videoLink: videoLink,
-    technicalSheet: technicalSheet,
-    canvaModel: canvaModel,
-    projectPdf: projectPdf,
+  const fichaTecnica = req.files["fichaTecnica"]
+    ? req.files["fichaTecnica"][0].path
+    : null;
+  const modeloCanva = req.files["modeloCanva"]
+    ? req.files["modeloCanva"][0].path
+    : null;
+  const pdfProyecto = req.files["pdfProyecto"]
+    ? req.files["pdfProyecto"][0].path
+    : null;
+
+  Proyecto.create({
+    idUser: userId,
+    name: nombreProyecto,
+    description: descripcion,
+    videoLink: videoPitch,
+    technicalSheet: fichaTecnica,
+    canvaModel: modeloCanva,
+    projectPdf: pdfProyecto,
   })
     .then(() => {
       res.status(200).send({ message: "Project uploaded successfully!" });

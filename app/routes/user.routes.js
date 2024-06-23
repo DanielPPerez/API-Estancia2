@@ -1,7 +1,19 @@
 const { authJwt } = require("../middleware");
 const controller = require("../controllers/user.controller");
 const multer = require("multer");
-const upload = multer({ dest: "uploads/" });
+const path = require("path");
+
+// Configurar multer para usar la carpeta persistente en el disco
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, "../../var/data/uploads"));
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage: storage });
 
 const multipleUpload = upload.fields([
   { name: "fichaTecnica", maxCount: 1 },

@@ -19,35 +19,43 @@ const db = {};
 db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 
-db.user = require("../models/user.model.js")(sequelize, Sequelize);
-db.role = require("../models/role.model.js")(sequelize, Sequelize);
-db.proyecto = require("../models/proyecto.model.js")(sequelize, Sequelize);
-db.refreshToken = require("../models/refreshToken.model.js")(
-  sequelize,
-  Sequelize
-);
+db.user = require("./user.model.js")(sequelize, Sequelize);
+db.role = require("./role.model.js")(sequelize, Sequelize);
+db.user_roles = require("./userRoles.js")(sequelize, Sequelize);
+db.proyecto = require("./proyecto.model.js")(sequelize, Sequelize);
+db.refreshToken = require("./refreshToken.model.js")(sequelize, Sequelize);
 
-db.role.belongsToMany(db.user, {
-  through: "user_roles",
-  foreignKey: "roleId",
-  otherKey: "userId",
-});
+// Definir asociaciones
+db.role.associate = (models) => {
+  db.role.belongsToMany(models.user, {
+    through: models.user_roles,
+    foreignKey: "roleId",
+    otherKey: "userId",
+  });
+};
 
-db.user.belongsToMany(db.role, {
-  through: "user_roles",
-  foreignKey: "userId",
-  otherKey: "roleId",
-});
+db.user.associate = (models) => {
+  db.user.belongsToMany(models.role, {
+    through: models.user_roles,
+    foreignKey: "userId",
+    otherKey: "roleId",
+  });
+  db.user.hasOne(models.refreshToken, {
+    foreignKey: "userId",
+    targetKey: "id",
+  });
+};
 
-db.refreshToken.belongsTo(db.user, {
-  foreignKey: "userId",
-  targetKey: "id",
-});
+db.refreshToken.associate = (models) => {
+  db.refreshToken.belongsTo(models.user, {
+    foreignKey: "userId",
+    targetKey: "id",
+  });
+};
 
-db.user.hasOne(db.refreshToken, {
-  foreignKey: "userId",
-  targetKey: "id",
-});
+db.user.associate(db);
+db.role.associate(db);
+db.refreshToken.associate(db);
 
 db.ROLES = ["user", "admin", "moderator"];
 

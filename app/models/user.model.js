@@ -1,27 +1,36 @@
-module.exports = (sequelize, Sequelize) => {
-  const User = sequelize.define("users", {
+// user.model.js
+module.exports = (sequelize, DataTypes) => {
+  const User = sequelize.define("user", {
     username: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
     },
     email: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
     },
     password: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
     },
     nombre: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
     },
     carrera: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
     },
     cuatrimestre: {
-      type: Sequelize.INTEGER,
+      type: DataTypes.STRING,
     },
     categoria: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
     },
   });
+
+  User.associate = (models) => {
+    User.belongsToMany(models.role, {
+      through: models.user_roles,
+      foreignKey: "userId",
+      otherKey: "roleId",
+    });
+  };
 
   return User;
 };

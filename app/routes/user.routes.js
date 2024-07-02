@@ -61,4 +61,11 @@ module.exports = function (app) {
     [authJwt.verifyToken, multipleUpload],
     controller.uploadProject
   );
+
+  // Nueva ruta para eliminar un usuario por su nombre de usuario
+  app.delete(
+    "/api/app/admin/user/:username",
+    [authJwt.verifyToken, authJwt.isAdmin],
+    controller.deleteUserByUsername
+  );
 };

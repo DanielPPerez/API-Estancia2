@@ -23,5 +23,13 @@ module.exports = (sequelize, Sequelize) => {
     },
   });
 
+  Proyecto.associate = (models) => {
+    // Asociación muchos a uno con User
+    Proyecto.belongsTo(models.user, {
+      foreignKey: "idUser",
+      as: "user",
+    });
+  };
+
   return Proyecto;
 };

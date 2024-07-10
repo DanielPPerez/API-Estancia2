@@ -30,6 +30,12 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: "userId",
       otherKey: "roleId",
     });
+
+    // Asociación uno a muchos con Proyecto
+    User.hasMany(models.proyecto, {
+      foreignKey: "idUser",
+      as: "proyectos",
+    });
   };
 
   return User;

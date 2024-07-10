@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const db = require("../models");
 const { user: User, user_roles: UserRoles, proyecto: Proyecto } = db;
 
@@ -40,6 +42,81 @@ exports.adminBoard = async (req, res) => {
     res.status(500).send({ message: err.message });
   }
 };
+
+//-----------proyectos-----------
+exports.getUserProjects = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ["id", "username", "categoria"],
+      include: [
+        {
+          model: Proyecto,
+          as: "proyectos",
+        },
+      ],
+    });
+
+    res.status(200).send(users);
+  } catch (err) {
+    console.error("Error fetching user projects:", err);
+    res.status(500).send({ message: err.message });
+  }
+};
+
+// exports.downloadFile = (req, res) => {
+//   try {
+//     res.download(
+//       __dirname + "../../../var/data/uploads/" + req.params.id,
+//       req.params.id,
+//       function (err) {
+//         if (err) {
+//           console.log(err);
+//         } else {
+//           console.log("listo");
+//         }
+//       }
+//     );
+//   } catch (err) {
+//     console.error("Error en downloadFile:", err);
+//     res.status(500).send({
+//       message: "Error en el servidor.",
+//     });
+//   }
+// };
+exports.downloadFile = (req, res) => {
+  try {
+    const fileId = req.params.id; // Obtener el ID del archivo desde los parámetros de la ruta
+
+    // Construir la ruta completa del archivo basado en el ID recibido
+    const filePath = path.join(__dirname, `../../var/data/uploads/${fileId}`);
+
+    // Verificar si el archivo existe
+    if (!fs.existsSync(filePath)) {
+      console.error("File does not exist:", filePath);
+      return res.status(404).send({
+        message: "El archivo no existe.",
+      });
+    }
+
+    // Descargar el archivo utilizando res.download()
+    res.download(filePath, (err) => {
+      if (err) {
+        console.error("Error al descargar el archivo:", err);
+        res.status(500).send({
+          message: "No se pudo descargar el archivo.",
+        });
+      } else {
+        console.log("Archivo descargado correctamente:", fileId);
+      }
+    });
+  } catch (err) {
+    console.error("Error en downloadFile:", err);
+    res.status(500).send({
+      message: "Error en el servidor.",
+    });
+  }
+};
+//-------------
 
 exports.moderatorBoard = (req, res) => {
   res.status(200).send("Moderator Content.");

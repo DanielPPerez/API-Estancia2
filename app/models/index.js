@@ -44,6 +44,11 @@ db.user.associate = (models) => {
     foreignKey: "userId",
     targetKey: "id",
   });
+  // Asociar User con Proyecto
+  db.user.hasMany(models.proyecto, {
+    foreignKey: "idUser",
+    as: "proyectos",
+  });
 };
 
 db.refreshToken.associate = (models) => {
@@ -53,9 +58,18 @@ db.refreshToken.associate = (models) => {
   });
 };
 
+// Asociar Proyecto con User
+db.proyecto.associate = (models) => {
+  db.proyecto.belongsTo(models.user, {
+    foreignKey: "idUser",
+    as: "user",
+  });
+};
+
 db.user.associate(db);
 db.role.associate(db);
 db.refreshToken.associate(db);
+db.proyecto.associate(db);
 
 db.ROLES = ["user", "admin", "moderator"];
 

@@ -68,4 +68,20 @@ module.exports = function (app) {
     [authJwt.verifyToken, authJwt.isAdmin],
     controller.deleteUserByUsername
   );
+
+  //----proyectos---
+  // Nueva ruta para obtener los datos del usuario y sus proyectos
+  app.get(
+    "/api/app/userProjects",
+    [authJwt.verifyToken, authJwt.isAdmin],
+    controller.getUserProjects
+  );
+
+  // Nueva ruta para descargar archivos
+  app.get(
+    "/api/app/download/:id",
+    [authJwt.verifyToken],
+    controller.downloadFile
+  );
 };
+//-------

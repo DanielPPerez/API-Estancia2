@@ -63,32 +63,12 @@ exports.getUserProjects = async (req, res) => {
   }
 };
 
-// exports.downloadFile = (req, res) => {
-//   try {
-//     res.download(
-//       __dirname + "../../../var/data/uploads/" + req.params.id,
-//       req.params.id,
-//       function (err) {
-//         if (err) {
-//           console.log(err);
-//         } else {
-//           console.log("listo");
-//         }
-//       }
-//     );
-//   } catch (err) {
-//     console.error("Error en downloadFile:", err);
-//     res.status(500).send({
-//       message: "Error en el servidor.",
-//     });
-//   }
-// };
 exports.downloadFile = (req, res) => {
   try {
     const fileId = req.params.id; // Obtener el ID del archivo desde los parámetros de la ruta
 
     // Construir la ruta completa del archivo basado en el ID recibido
-    const filePath = path.join(__dirname, `../../var/data/uploads/${fileId}`);
+    const filePath = path.join(__dirname, `${fileId}`);
 
     // Verificar si el archivo existe
     if (!fs.existsSync(filePath)) {

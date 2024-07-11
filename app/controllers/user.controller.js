@@ -68,7 +68,7 @@ exports.downloadFile = (req, res) => {
     const fileId = req.params.id; // Obtener el ID del archivo desde los parámetros de la ruta
 
     // Construir la ruta completa del archivo basado en el ID recibido
-    const filePath = path.join(__dirname, `${fileId}`);
+    const filePath = path.join(`/var/data/uploads/${fileId}`);
 
     // Verificar si el archivo existe
     if (!fs.existsSync(filePath)) {

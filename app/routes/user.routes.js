@@ -83,5 +83,11 @@ module.exports = function (app) {
     [authJwt.verifyToken],
     controller.downloadFile
   );
+
+  app.get(
+    "/api/app/userProjectsAll",
+    [authJwt.verifyToken],
+    controller.getUserProjects
+  );
 };
 //-------

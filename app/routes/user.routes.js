@@ -89,5 +89,17 @@ module.exports = function (app) {
     [authJwt.verifyToken],
     controller.getUserProjects
   );
+
+  //calificaiones
+  app.get(
+    "/api/app/ssv/obtenerCal",
+    [authJwt.verifyToken, authJwt.isModerator],
+    controller.moderatorBoard
+  );
+  app.post(
+    "/api/app/ssv/mandarCal",
+    [authJwt.verifyToken, authJwt.isModerator],
+    controller.moderatorCal
+  );
 };
 //-------

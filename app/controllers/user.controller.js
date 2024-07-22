@@ -1,7 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 const db = require("../models");
-const { user: User, user_roles: UserRoles, proyecto: Proyecto } = db;
+const {
+  user: User,
+  user_roles: UserRoles,
+  proyecto: Proyecto,
+  calificaciones: Calificaciones,
+} = db;
 
 exports.allAccess = (req, res) => {
   res.status(200).send("Public Content.");
@@ -47,7 +52,7 @@ exports.adminBoard = async (req, res) => {
 exports.getUserProjects = async (req, res) => {
   try {
     const users = await User.findAll({
-      attributes: ["id", "username", "categoria"],
+      attributes: ["id", "username", "categoria", "carrera"],
       include: [
         {
           model: Proyecto,
@@ -69,7 +74,7 @@ exports.downloadFile = (req, res) => {
 
     // Construir la ruta completa del archivo basado en el ID recibido
     const filePath = path.join(`/${fileId}`);
-
+    // const filePath = path.join(`/var/data/uploads/${fileId}`);
     // Verificar si el archivo existe
     if (!fs.existsSync(filePath)) {
       console.error("File does not exist:", filePath);
@@ -98,9 +103,9 @@ exports.downloadFile = (req, res) => {
 };
 //-------------
 
-exports.moderatorBoard = (req, res) => {
-  res.status(200).send("Moderator Content.");
-};
+// exports.moderatorBoard = (req, res) => {
+//   res.status(200).send("Moderator Content.");
+// };
 
 exports.deleteUserByUsername = async (req, res) => {
   try {
@@ -153,4 +158,48 @@ exports.uploadProject = (req, res) => {
       console.error("Error en uploadProject:", err);
       res.status(500).send({ message: err.message });
     });
+};
+
+//calificaciones mod.
+
+exports.moderatorBoard = async (req, res) => {
+  try {
+    const calificaciones = await Calificaciones.findAll();
+    res.status(200).send(calificaciones);
+  } catch (error) {
+    console.error("Error al obtener las calificaciones:", error);
+    res.status(500).send({ message: error.message });
+  }
+};
+
+exports.moderatorCal = async (req, res) => {
+  const {
+    userEvaluador,
+    userAlumno,
+    innovacion,
+    mercado,
+    tecnica,
+    financiera,
+    pitch,
+    observaciones,
+    total,
+  } = req.body;
+  try {
+    const newCalificacion = await Calificaciones.create({
+      userEvaluador,
+      userAlumno,
+      innovacion,
+      mercado,
+      tecnica,
+      financiera,
+      pitch,
+      observaciones,
+      total,
+    });
+
+    res.status(201).send(newCalificacion);
+  } catch (error) {
+    console.error("Error al crear la calificación:", error);
+    res.status(500).send({ message: error.message });
+  }
 };

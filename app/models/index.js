@@ -23,6 +23,7 @@ db.user = require("./user.model.js")(sequelize, Sequelize);
 db.role = require("./role.model.js")(sequelize, Sequelize);
 db.user_roles = require("./userRoles.js")(sequelize, Sequelize);
 db.proyecto = require("./proyecto.model.js")(sequelize, Sequelize);
+db.calificaciones = require("./calificaciones.model.js")(sequelize, Sequelize);
 db.refreshToken = require("./refreshToken.model.js")(sequelize, Sequelize);
 
 // Definir asociaciones

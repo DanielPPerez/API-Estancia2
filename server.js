@@ -32,7 +32,7 @@ db.sequelize.sync();
 
 // simple route
 app.get("/", (req, res) => {
-  res.json({ message: "Welcome to AlifRadifanPiandy application." });
+  res.json({ message: "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn____NNNN." });
 });
 
 // routes

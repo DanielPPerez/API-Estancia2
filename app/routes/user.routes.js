@@ -93,7 +93,7 @@ module.exports = function (app) {
   //calificaiones
   app.get(
     "/api/app/ssv/obtenerCal",
-    [authJwt.verifyToken, authJwt.isModerator],
+    [authJwt.verifyToken, authJwt.isModeratorOrAdmin],
     controller.moderatorBoard
   );
   app.post(

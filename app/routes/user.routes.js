@@ -3,9 +3,10 @@ const controller = require("../controllers/user.controller");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const { dir } = require("console");
 
 // Directorio persistente en Render
-const UPLOADS_DIR = path.join("/var/data/uploads");
+const UPLOADS_DIR = path.join(__dirname, "/var/data/uploads");
 
 // Crear el directorio si no existe
 if (!fs.existsSync(UPLOADS_DIR)) {

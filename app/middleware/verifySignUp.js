@@ -1,57 +1,54 @@
-const db = require("../models");
-const ROLES = db.ROLES;
-const User = db.user;
+// middleware/verifySignUp.js
+const pool = require("../config/db.config");
 
-checkDuplicateUsernameOrEmail = (req, res, next) => {
-  // Username
-  User.findOne({
-    where: {
-      username: req.body.username
-    }
-  }).then(user => {
-    if (user) {
-      res.status(400).send({
-        message: "Failed! Username is already in use!"
-      });
-      return;
+checkDuplicateUsernameOrEmail = async (req, res, next) => {
+  try {
+    // Username
+    let [rows] = await pool.query("SELECT * FROM users WHERE username = ?", [req.body.username]);
+    if (rows.length > 0) {
+      return res.status(400).send({ message: "Failed! Username is already in use!" });
     }
 
     // Email
-    User.findOne({
-      where: {
-        email: req.body.email
-      }
-    }).then(user => {
-      if (user) {
-        res.status(400).send({
-          message: "Failed! Email is already in use!"
-        });
-        return;
-      }
-
-      next();
-    });
-  });
+    [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [req.body.email]);
+    if (rows.length > 0) {
+      return res.status(400).send({ message: "Failed! Email is already in use!" });
+    }
+    next();
+  } catch (error) {
+    console.error("checkDuplicateUsernameOrEmail error:", error);
+    return res.status(500).send({ message: "Unable to validate Username/Email." });
+  }
 };
 
-checkRolesExisted = (req, res, next) => {
+checkRolesExisted = async (req, res, next) => {
   if (req.body.roles) {
-    for (let i = 0; i < req.body.roles.length; i++) {
-      if (!ROLES.includes(req.body.roles[i])) {
-        res.status(400).send({
-          message: "Failed! Role does not exist = " + req.body.roles[i]
-        });
-        return;
+    try {
+      const requestedRoles = req.body.roles.map(role => role.toLowerCase());
+      // Construir la consulta IN de forma segura
+      const placeholders = requestedRoles.map(() => '?').join(',');
+      const [rows] = await pool.query(`SELECT name FROM roles WHERE name IN (${placeholders})`, requestedRoles);
+
+      const foundRoles = rows.map(r => r.name);
+
+      for (let i = 0; i < requestedRoles.length; i++) {
+        if (!foundRoles.includes(requestedRoles[i])) {
+          return res.status(400).send({
+            message: `Failed! Role '${requestedRoles[i]}' does not exist.`,
+          });
+        }
       }
+    } catch (error) {
+      console.error("checkRolesExisted error:", error);
+      return res.status(500).send({ message: "Unable to validate roles." });
     }
   }
-  
   next();
 };
 
 const verifySignUp = {
-  checkDuplicateUsernameOrEmail: checkDuplicateUsernameOrEmail,
-  checkRolesExisted: checkRolesExisted
+  checkDuplicateUsernameOrEmail,
+  checkRolesExisted,
 };
 
 module.exports = verifySignUp;

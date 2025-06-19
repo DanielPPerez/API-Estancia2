@@ -1,3 +1,4 @@
+// routes/auth.routes.js
 const { verifySignUp } = require("../middleware");
 const controller = require("../controllers/auth.controller");
 
@@ -11,7 +12,7 @@ module.exports = function (app) {
   });
 
   app.post(
-    "/api/solver/signup",
+    "/api/auth/signup", // Cambiado prefijo para consistencia
     [
       verifySignUp.checkDuplicateUsernameOrEmail,
       verifySignUp.checkRolesExisted,

@@ -1,35 +1,8 @@
+// routes/user.routes.js
 const { authJwt } = require("../middleware");
-const controller = require("../controllers/user.controller");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const { dir } = require("console");
-
-// Directorio persistente en Render
-const UPLOADS_DIR = path.join(__dirname, "/var/data/uploads");
-
-// Crear el directorio si no existe
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-
-// Configurar multer para usar la carpeta persistente en el disco
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, UPLOADS_DIR);
-  },
-  filename: function (req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-
-const upload = multer({ storage: storage });
-
-const multipleUpload = upload.fields([
-  { name: "fichaTecnica", maxCount: 1 },
-  { name: "modeloCanva", maxCount: 1 },
-  { name: "pdfProyecto", maxCount: 1 },
-]);
+const userController = require("../controllers/user.controller");
+// Asumiendo que las funciones de calificación están en user.controller.js por ahora
+// const calificacionesController = require("../controllers/calificaciones.controller.js"); // Si lo separas
 
 module.exports = function (app) {
   app.use(function (req, res, next) {
@@ -40,67 +13,29 @@ module.exports = function (app) {
     next();
   });
 
-  app.get("/api/app/all", controller.allAccess);
+  // Rutas de contenido general (como las tenías)
+  // app.get("/api/users/all", userController.allAccess); // No tenías allAccess en el user.controller adaptado
 
-  app.get("/api/app/user", [authJwt.verifyToken], controller.userBoard);
+  // Rutas CRUD para Usuarios (ejemplos)
+  app.get("/api/users", [authJwt.verifyToken, authJwt.isAdmin], userController.getAllUsers);
+  app.get("/api/users/:id", [authJwt.verifyToken, authJwt.isAdmin], userController.getUserById); // O permitir al propio usuario ver su info
+  app.put("/api/users/:id", [authJwt.verifyToken, authJwt.isAdmin], userController.updateUser); // O permitir al propio usuario editarse
+  app.delete("/api/users/:id", [authJwt.verifyToken, authJwt.isAdmin], userController.deleteUserById);
+
+
+  // Rutas específicas de "boards"
+  app.get("/api/users/userboard", [authJwt.verifyToken], userController.userBoard); // Panel para usuario logueado
 
   app.get(
-    "/api/app/mod",
+    "/api/users/modboard", // Panel para moderadores
     [authJwt.verifyToken, authJwt.isModerator],
-    controller.moderatorBoard
+    userController.moderatorBoard // Asumiendo que tienes una función para esto en user.controller o calificaciones.controller
   );
 
   app.get(
-    "/api/app/admin",
+    "/api/users/adminboard", // Panel para administradores
     [authJwt.verifyToken, authJwt.isAdmin],
-    controller.adminBoard
+    userController.adminBoard
   );
 
-  // Nueva ruta para subir proyectos
-  app.post(
-    "/api/app/uploadProject",
-    [authJwt.verifyToken, multipleUpload],
-    controller.uploadProject
-  );
-
-  // Nueva ruta para eliminar un usuario por su nombre de usuario
-  app.delete(
-    "/api/app/admin/user/:username",
-    [authJwt.verifyToken, authJwt.isAdmin],
-    controller.deleteUserByUsername
-  );
-
-  //----proyectos---
-  // Nueva ruta para obtener los datos del usuario y sus proyectos
-  app.get(
-    "/api/app/userProjects",
-    [authJwt.verifyToken, authJwt.isAdmin],
-    controller.getUserProjects
-  );
-
-  // Nueva ruta para descargar archivos
-  app.get(
-    "/api/app/download/:id",
-    [authJwt.verifyToken],
-    controller.downloadFile
-  );
-
-  app.get(
-    "/api/app/userProjectsAll",
-    [authJwt.verifyToken],
-    controller.getUserProjects
-  );
-
-  //calificaiones
-  app.get(
-    "/api/app/ssv/obtenerCal",
-    [authJwt.verifyToken, authJwt.isModeratorOrAdmin],
-    controller.moderatorBoard
-  );
-  app.post(
-    "/api/app/ssv/mandarCal",
-    [authJwt.verifyToken, authJwt.isModerator],
-    controller.moderatorCal
-  );
 };
-//-------

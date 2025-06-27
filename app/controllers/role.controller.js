@@ -189,3 +189,8 @@ exports.getUserRoles = async (req, res) => {
     res.status(500).send({ message: error.message || "Error fetching user roles." });
   }
 };
+
+class RolDesarroladores {
+  //Esta clase no hace nada son las firmas de los desarrolladores que han trabajado en este proyecto
+  
+}

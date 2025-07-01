@@ -36,26 +36,38 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    // Aceptar solo ciertos tipos de archivos (ejemplo)
-    if (file.mimetype === 'application/pdf' || file.mimetype === 'image/jpeg' || file.mimetype === 'image/png' || file.mimetype.startsWith('video/')) {
-        cb(null, true);
-    } else {
-        cb(new Error('Invalid file type. Only PDF, JPEG, PNG, and video files are allowed.'), false);
-    }
+  // Solo aceptar PDF para los campos de proyecto
+  if (
+    (file.fieldname === 'fichaTecnica' || file.fieldname === 'modeloCanva' || file.fieldname === 'pdfProyecto') &&
+    file.mimetype === 'application/pdf'
+  ) {
+    cb(null, true);
+  } else {
+    cb(new Error('Solo se permiten archivos PDF para los documentos del proyecto.'), false);
+  }
 };
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 1024 * 1024 * 25 }, // Límite de 25MB por archivo (ajusta según necesidad)
+  limits: { fileSize: 1024 * 1024 * 25 }, // 25MB
   fileFilter: fileFilter
 });
 
 // Middleware para los campos específicos de un proyecto
-const projectUploadMiddleware = upload.fields([
-  { name: "fichaTecnica", maxCount: 1 },
-  { name: "modeloCanva", maxCount: 1 },
-  { name: "pdfProyecto", maxCount: 1 },
-]);
+const projectUploadMiddleware = (req, res, next) => {
+  upload.fields([
+    { name: "fichaTecnica", maxCount: 1 },
+    { name: "modeloCanva", maxCount: 1 },
+    { name: "pdfProyecto", maxCount: 1 },
+  ])(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ message: 'Error de subida de archivos: ' + err.message });
+    } else if (err) {
+      return res.status(400).json({ message: err.message });
+    }
+    next();
+  });
+};
 
 // Middleware para un solo archivo (ej. avatar de usuario)
 const singleFileUploadMiddleware = (fieldName) => upload.single(fieldName);

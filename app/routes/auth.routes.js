@@ -12,7 +12,7 @@ module.exports = function (app) {
   });
 
   app.post(
-    "/api/auth/signup", // Cambiado prefijo para consistencia
+    "/api/auth/signup", 
     [
       verifySignUp.checkDuplicateUsernameOrEmail,
       verifySignUp.checkRolesExisted,

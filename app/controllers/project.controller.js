@@ -5,7 +5,7 @@ const path = require("path");
 // Crear un nuevo proyecto 
 exports.createProject = async (req, res) => {
   const userId = req.userId; 
-  const { nombreProyecto, descripcion, videoPitch } = req.body;
+  const { nombreProyecto, descripcion, videoPitch } = req.body; 
 
   if (!userId || !nombreProyecto) {
     return res.status(400).send({ message: "User ID and Project Name are required." });
@@ -15,14 +15,20 @@ exports.createProject = async (req, res) => {
   const modeloCanvaPath = req.files && req.files['modeloCanva'] ? req.files['modeloCanva'][0].path : null;
   const pdfProyectoPath = req.files && req.files['pdfProyecto'] ? req.files['pdfProyecto'][0].path : null;
 
+  // Determinar estatus automáticamente
+  let estatus = 'no subido';
+  if (fichaTecnicaPath && modeloCanvaPath && pdfProyectoPath) {
+    estatus = 'subido';
+  }
+
   try {
     const [result] = await pool.query(
       `INSERT INTO projects 
-       (user_id, name, description, video_link, technical_sheet_path, canva_model_path, project_pdf_path) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, nombreProyecto, descripcion, videoPitch, fichaTecnicaPath, modeloCanvaPath, pdfProyectoPath]
+       (user_id, name, description, video_link, technical_sheet_path, canva_model_path, project_pdf_path, estatus) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, nombreProyecto, descripcion, videoPitch, fichaTecnicaPath, modeloCanvaPath, pdfProyectoPath, estatus]
     );
-    res.status(201).send({ id: result.insertId, message: "Project created successfully!" });
+    res.status(201).send({ id: result.insertId, message: "Project created successfully!", estatus });
   } catch (error) {
     console.error("Error creating project:", error);
     if (fichaTecnicaPath && fs.existsSync(fichaTecnicaPath)) fs.unlinkSync(fichaTecnicaPath);
@@ -98,7 +104,7 @@ exports.getProjectsByUserId = async (req, res) => {
 // Actualizar un proyecto por ID
 exports.updateProject = async (req, res) => {
   const { id } = req.params; 
-  const { nombreProyecto, descripcion, videoPitch } = req.body;
+  const { nombreProyecto, descripcion, videoPitch, estatus } = req.body; // <-- Añadido estatus
   const userId = req.userId; 
 
   // Podrías querer verificar que el req.userId es el dueño del proyecto o es un admin
@@ -134,6 +140,7 @@ exports.updateProject = async (req, res) => {
   if (nombreProyecto !== undefined) { fieldsToUpdate.push("name = ?"); params.push(nombreProyecto); }
   if (descripcion !== undefined) { fieldsToUpdate.push("description = ?"); params.push(descripcion); }
   if (videoPitch !== undefined) { fieldsToUpdate.push("video_link = ?"); params.push(videoPitch); }
+  if (estatus !== undefined) { fieldsToUpdate.push("estatus = ?"); params.push(estatus); }
   
   // Si se subió un nuevo archivo, la ruta ya está en la variable correspondiente
   if (req.files && req.files['fichaTecnica']) { fieldsToUpdate.push("technical_sheet_path = ?"); params.push(fichaTecnicaPath); }

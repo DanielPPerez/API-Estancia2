@@ -44,7 +44,10 @@ exports.getAllProjects = async (req, res) => {
     const [projects] = await pool.query(
       `SELECT p.id, p.name, p.description, p.video_link, 
               p.technical_sheet_path, p.canva_model_path, p.project_pdf_path,
-              p.created_at, p.user_id, u.username as owner_username, u.nombre as owner_name
+              p.created_at, p.user_id, 
+              u.username as owner_username, 
+              u.nombre as owner_name,
+              u.categoria as category  -- <-- AÑADE ESTA LÍNEA
        FROM projects p
        JOIN users u ON p.user_id = u.id
        ORDER BY p.created_at DESC`

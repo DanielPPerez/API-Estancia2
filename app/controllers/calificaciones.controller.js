@@ -21,24 +21,23 @@ exports.createCalificacion = async (req, res) => {
   // Validar que los campos de calificación sean números si se proveen
   const criterios = { innovacion, mercado, tecnica, financiera, pitch };
   for (const key in criterios) {
-    if (criterios[key] !== undefined && (isNaN(parseFloat(criterios[key])) || parseFloat(criterios[key]) < 0 || parseFloat(criterios[key]) > 100)) { // Ejemplo: rango 0-100
-        return res.status(400).send({ message: `Invalid value for ${key}. Must be a number between 0 and 100.` });
+    if (criterios[key] !== undefined && (isNaN(parseFloat(criterios[key])) || parseFloat(criterios[key]) < 0 || parseFloat(criterios[key]) > 5)) { // Rango 0-5
+        return res.status(400).send({ message: `Invalid value for ${key}. Must be a number between 0 and 5.` });
     }
   }
 
-  // Calcular el total
+  // Calcular el total como promedio de los criterios ingresados
   let calculatedTotal = 0;
-  if (innovacion !== undefined) calculatedTotal += parseFloat(innovacion);
-  if (mercado !== undefined) calculatedTotal += parseFloat(mercado);
-  if (tecnica !== undefined) calculatedTotal += parseFloat(tecnica);
-  if (financiera !== undefined) calculatedTotal += parseFloat(financiera);
-  if (pitch !== undefined) calculatedTotal += parseFloat(pitch);
+  let numCriterios = 0;
+  if (innovacion !== undefined) { calculatedTotal += parseFloat(innovacion); numCriterios++; }
+  if (mercado !== undefined) { calculatedTotal += parseFloat(mercado); numCriterios++; }
+  if (tecnica !== undefined) { calculatedTotal += parseFloat(tecnica); numCriterios++; }
+  if (financiera !== undefined) { calculatedTotal += parseFloat(financiera); numCriterios++; }
+  if (pitch !== undefined) { calculatedTotal += parseFloat(pitch); numCriterios++; }
   
-  // Si el total es un promedio de los criterios ingresados:
-  // const numCriterios = Object.values(criterios).filter(v => v !== undefined).length;
-  // const finalTotal = numCriterios > 0 ? (calculatedTotal / numCriterios) : 0;
-  // Si el total es la suma (o un valor específico si se envía):
-  const finalTotal = req.body.total !== undefined ? parseFloat(req.body.total) : calculatedTotal;
+  // Calcular el promedio y redondear a 2 decimales (rango 0-5)
+  const finalTotal = req.body.total !== undefined ? parseFloat(req.body.total).toFixed(2) : 
+                     (numCriterios > 0 ? (calculatedTotal / numCriterios).toFixed(2) : 0);
 
   let connection;
   try {
@@ -164,7 +163,7 @@ exports.getCalificacionesByEvaluadorId = async (req, res) => {
     }
 };
 
-// Actualizar una calificación (solo el evaluador que la creó o un Admin)
+// Actualizar una calificación (cualquier evaluador o admin)
 exports.updateCalificacion = async (req, res) => {
   const { id } = req.params; // ID de la calificación a actualizar
   const editorId = req.userId; 
@@ -179,52 +178,51 @@ exports.updateCalificacion = async (req, res) => {
 
   const criterios = { innovacion, mercado, tecnica, financiera, pitch };
   for (const key in criterios) {
-    if (criterios[key] !== undefined && (isNaN(parseFloat(criterios[key])) || parseFloat(criterios[key]) < 0 || parseFloat(criterios[key]) > 100)) {
-        return res.status(400).send({ message: `Invalid value for ${key}. Must be a number between 0 and 100.` });
+    if (criterios[key] !== undefined && (isNaN(parseFloat(criterios[key])) || parseFloat(criterios[key]) < 0 || parseFloat(criterios[key]) > 5)) {
+        return res.status(400).send({ message: `Invalid value for ${key}. Must be a number between 0 and 5.` });
     }
   }
 
   let calculatedTotal = 0;
   let numCriteriosActualizados = 0;
 
-  // Se debe obtener los valores actuales de la BD para recalcular el total correctamente si solo se actualizan algunos
-  // o basar el cálculo solo en los campos enviados en el body.
-  // Por simplicidad, si se actualiza algún criterio, se recalcula el total con los nuevos valores y los existentes no enviados
-  // (esto requeriría una lectura previa de la calificación).
-  // O, más simple, recalcular SOLO con los datos del body:
+  // Calcular el promedio solo con los criterios que se están actualizando
   if (innovacion !== undefined) { calculatedTotal += parseFloat(innovacion); numCriteriosActualizados++; }
   if (mercado !== undefined) { calculatedTotal += parseFloat(mercado); numCriteriosActualizados++; }
   if (tecnica !== undefined) { calculatedTotal += parseFloat(tecnica); numCriteriosActualizados++; }
   if (financiera !== undefined) { calculatedTotal += parseFloat(financiera); numCriteriosActualizados++; }
   if (pitch !== undefined) { calculatedTotal += parseFloat(pitch); numCriteriosActualizados++; }
   
-  const finalTotal = req.body.total !== undefined ? parseFloat(req.body.total) : (numCriteriosActualizados > 0 ? calculatedTotal : undefined);
-
+  // Calcular el promedio y redondear a 2 decimales (rango 0-5)
+  const finalTotal = req.body.total !== undefined ? parseFloat(req.body.total).toFixed(2) : 
+                     (numCriteriosActualizados > 0 ? (calculatedTotal / numCriteriosActualizados).toFixed(2) : undefined);
 
   let connection;
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
+    // Verificar que la calificación existe
     const [calificacionRows] = await connection.query(
-      "SELECT user_evaluador_id FROM calificaciones WHERE id = ?",
+      "SELECT id FROM calificaciones WHERE id = ?",
       [id]
     );
     if (calificacionRows.length === 0) {
       await connection.rollback();
       return res.status(404).send({ message: `Calificación with ID ${id} not found.` });
     }
-    const originalEvaluadorId = calificacionRows[0].user_evaluador_id;
 
+    // Verificar que el usuario tiene rol de evaluador o admin
     const [editorRolesRows] = await connection.query(
       `SELECT r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ?`,
       [editorId]
     );
     const editorRoles = editorRolesRows.map(r => r.name.toLowerCase());
 
-    if (originalEvaluadorId !== editorId && !editorRoles.includes("admin")) {
+    // Permitir actualización si es evaluador o admin
+    if (!editorRoles.includes("evaluador") && !editorRoles.includes("admin")) {
       await connection.rollback();
-      return res.status(403).send({ message: "Forbidden: You are not authorized to update this calificación." });
+      return res.status(403).send({ message: "Forbidden: You must be an evaluator or admin to update calificaciones." });
     }
 
     const fieldsToUpdate = [];
@@ -264,7 +262,7 @@ exports.updateCalificacion = async (req, res) => {
   }
 };
 
-// Eliminar una calificación (solo el evaluador que la creó o un Admin)
+// Eliminar una calificación (cualquier evaluador o admin)
 exports.deleteCalificacion = async (req, res) => {
   const { id } = req.params; 
   const deleterId = req.userId;
@@ -274,25 +272,27 @@ exports.deleteCalificacion = async (req, res) => {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
+    // Verificar que la calificación existe
     const [calificacionRows] = await connection.query(
-      "SELECT user_evaluador_id FROM calificaciones WHERE id = ?",
+      "SELECT id FROM calificaciones WHERE id = ?",
       [id]
     );
     if (calificacionRows.length === 0) {
       await connection.rollback();
       return res.status(404).send({ message: `Calificación with ID ${id} not found.` });
     }
-    const originalEvaluadorId = calificacionRows[0].user_evaluador_id;
 
+    // Verificar que el usuario tiene rol de evaluador o admin
     const [deleterRolesRows] = await connection.query(
       `SELECT r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = ?`,
       [deleterId]
     );
     const deleterRoles = deleterRolesRows.map(r => r.name.toLowerCase());
 
-    if (originalEvaluadorId !== deleterId && !deleterRoles.includes("admin")) {
+    // Permitir eliminación si es evaluador o admin
+    if (!deleterRoles.includes("evaluador") && !deleterRoles.includes("admin")) {
       await connection.rollback();
-      return res.status(403).send({ message: "Forbidden: You are not authorized to delete this calificación." });
+      return res.status(403).send({ message: "Forbidden: You must be an evaluator or admin to delete calificaciones." });
     }
 
     const [result] = await connection.query("DELETE FROM calificaciones WHERE id = ?", [id]);

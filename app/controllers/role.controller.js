@@ -168,7 +168,32 @@ exports.removeRoleFromUser = async (req, res) => {
 // Obtener los roles de un usuario específico
 exports.getUserRoles = async (req, res) => {
   const { userId } = req.params;
+  const requestingUserId = req.userId; // ID del usuario que hace la petición
+  
   try {
+    // Verificar que el usuario existe
+    const [userExists] = await pool.query("SELECT id FROM users WHERE id = ?", [userId]);
+    if (userExists.length === 0) {
+      return res.status(404).send({ message: `User with id ${userId} not found.` });
+    }
+
+    // Verificar permisos: solo puede ver sus propios roles o ser admin
+    if (parseInt(userId) !== parseInt(requestingUserId)) {
+      // Si no es el mismo usuario, verificar si es admin
+      const [adminRoles] = await pool.query(
+        `SELECT r.name 
+         FROM roles r
+         JOIN user_roles ur ON r.id = ur.role_id
+         WHERE ur.user_id = ? AND r.name = 'admin'`,
+        [requestingUserId]
+      );
+      
+      if (adminRoles.length === 0) {
+        return res.status(403).send({ message: "You can only view your own roles." });
+      }
+    }
+
+    // Obtener los roles del usuario
     const [roles] = await pool.query(
       `SELECT r.id, r.name 
        FROM roles r
@@ -176,13 +201,7 @@ exports.getUserRoles = async (req, res) => {
        WHERE ur.user_id = ?`,
       [userId]
     );
-    if (roles.length === 0) {
-      const [userExists] = await pool.query("SELECT id FROM users WHERE id = ?", [userId]);
-      if (userExists.length === 0) {
-        return res.status(404).send({ message: `User with id ${userId} not found.` });
-      }
-      return res.status(200).send([]); 
-    }
+    
     res.status(200).send(roles);
   } catch (error) {
     console.error(`Error fetching roles for user ${userId}:`, error);

@@ -46,7 +46,7 @@ module.exports = function(app) {
   // Obtener los roles de un usuario específico (Admin o el propio usuario)
   app.get(
     "/api/users/:userId/roles",
-    [authJwt.verifyToken, authJwt.isAdmin], // O permitir que un usuario vea sus propios roles
+    [authJwt.verifyToken], // Permitir que cualquier usuario autenticado vea sus propios roles
     controller.getUserRoles
   );
 };

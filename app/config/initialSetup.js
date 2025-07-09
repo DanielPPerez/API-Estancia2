@@ -2,45 +2,45 @@ const pool = require('./db.config');
 const bcrypt = require('bcryptjs');
 
 // --- DATOS DE CONFIGURACIÓN ---
-const ROLES = ['user', 'moderator', 'admin'];
+const ROLES = ['user', 'moderator', 'admin', 'evaluador'];
 
 const USERS = [
   // Administradora
   {
     email: 'cmadariaga@upchiapas.edu.mx',
-    username: 'cmadariaga',
+    username: 'Claudia Madariaga',
     nombre: 'Claudia Madariaga',
-    password: process.env.ADMIN_DEFAULT_PASSWORD || 'ChangeMeAdmin123!', // Usa variable de entorno
-    roles: ['admin', 'moderator', 'user']
+    password: 'Claudia2025!',
+    roles: ['admin', 'moderator', 'user', 'evaluador']
   },
-  // Evaluadores (ahora serán 'moderator')
+  // Evaluadores
   {
     email: 'paniawoah@gmail.com',
-    username: 'd.paniagua',
+    username: 'Daniel Paniagua',
     nombre: 'Daniel Paniagua',
-    password: process.env.EVALUADOR_DEFAULT_PASSWORD || 'ChangeMeEvaluador123!',
-    roles: ['moderator', 'user']
+    password: 'Daniel2025!',
+    roles: ['evaluador', 'user']
   },
   {
     email: 'roberto.borges@seyt.gob.mx',
-    username: 'r.borges',
+    username: 'Roberto Borges',
     nombre: 'Roberto Borges',
-    password: process.env.EVALUADOR_DEFAULT_PASSWORD || 'ChangeMeEvaluador123!',
-    roles: ['moderator', 'user']
+    password: 'Roberto2025!',
+    roles: ['evaluador', 'user']
   },
   {
     email: 'capacitaeconomia@gmail.com',
-    username: 'm.camacho',
+    username: 'Mauricio Camacho',
     nombre: 'Mauricio Camacho',
-    password: process.env.EVALUADOR_DEFAULT_PASSWORD || 'ChangeMeEvaluador123!',
-    roles: ['moderator', 'user']
+    password: 'Mauricio2025!',
+    roles: ['evaluador', 'user']
   },
   {
     email: 'dpedrero@hotmail.com',
-    username: 'd.pedrero',
+    username: 'Damian Pedrero',
     nombre: 'Damian Pedrero',
-    password: process.env.EVALUADOR_DEFAULT_PASSWORD || 'ChangeMeEvaluador123!',
-    roles: ['moderator', 'user']
+    password: 'Damian2025!',
+    roles: ['evaluador', 'user']
   }
 ];
 

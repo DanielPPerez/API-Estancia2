@@ -1,18 +1,34 @@
-const config = require("../config/db.config.js");
-
 const Sequelize = require("sequelize");
-const sequelize = new Sequelize(config.DB, config.USER, config.PASSWORD, {
-  host: config.HOST,
-  dialect: config.dialect,
-  operatorsAliases: false,
+const dbConfig = require("../config/db.config.js");
 
-  pool: {
-    max: config.pool.max,
-    min: config.pool.min,
-    acquire: config.pool.acquire,
-    idle: config.pool.idle,
-  },
-});
+let sequelize;
+
+// Render y otras plataformas de hosting configuran la variable DATABASE_URL automáticamente.
+if (process.env.DATABASE_URL) {
+  // Si estamos en producción (en Render), usamos la URL de conexión.
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    protocol: 'postgres',
+    dialectOptions: dbConfig.dialectOptions // Usamos las opciones de SSL que definimos antes
+  });
+} else {
+  // Si estamos en desarrollo (en tu PC), usamos la configuración manual del db.config.js.
+  sequelize = new Sequelize(
+    dbConfig.DB,
+    dbConfig.USER,
+    dbConfig.PASSWORD,
+    {
+      host: dbConfig.HOST,
+      dialect: dbConfig.dialect,
+      pool: {
+        max: dbConfig.pool.max,
+        min: dbConfig.pool.min,
+        acquire: dbConfig.pool.acquire,
+        idle: dbConfig.pool.idle
+      }
+    }
+  );
+}
 
 const db = {};
 

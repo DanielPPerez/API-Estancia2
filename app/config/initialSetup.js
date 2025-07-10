@@ -8,6 +8,7 @@ const ROLES = ['user', 'moderator', 'admin', 'evaluador'];
 const USERS = [
   // Administradora
   {
+    id: 1,
     email: 'cmadariaga@upchiapas.edu.mx',
     username: 'Claudia Madariaga',
     nombre: 'Claudia Madariaga',
@@ -16,6 +17,7 @@ const USERS = [
   },
   // Evaluadores
   {
+    id: 2,
     email: 'paniawoah@gmail.com',
     username: 'Daniel Paniagua',
     nombre: 'Daniel Paniagua',
@@ -23,6 +25,7 @@ const USERS = [
     roles: ['evaluador', 'user']
   },
   {
+    id: 3,
     email: 'roberto.borges@seyt.gob.mx',
     username: 'Roberto Borges',
     nombre: 'Roberto Borges',
@@ -30,6 +33,7 @@ const USERS = [
     roles: ['evaluador', 'user']
   },
   {
+    id: 4,
     email: 'capacitaeconomia@gmail.com',
     username: 'Mauricio Camacho',
     nombre: 'Mauricio Camacho',
@@ -37,6 +41,7 @@ const USERS = [
     roles: ['evaluador', 'user']
   },
   {
+    id: 5,
     email: 'dpedrero@hotmail.com',
     username: 'Damian Pedrero',
     nombre: 'Damian Pedrero',

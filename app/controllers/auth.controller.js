@@ -51,7 +51,7 @@ exports.signup = async (req, res) => {
       const userRoleValues = roleRows.map(role => [userId, role.id]);
       if (userRoleValues.length > 0) {
         await connection.query(
-          "INSERT INTO user_roles (user_id, role_id) VALUES ?",
+          "INSERT INTO user_roles (userId, roleId) VALUES ?",
           [userRoleValues] // Inserción múltiple
         );
       }
@@ -63,7 +63,7 @@ exports.signup = async (req, res) => {
         return res.status(500).send({ message: "Default role 'user' not found. Please configure roles." });
       }
       await connection.query(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
+        "INSERT INTO user_roles (userId, roleId) VALUES (?, ?)",
         [userId, defaultRole[0].id]
       );
     }
@@ -127,9 +127,9 @@ exports.signin = async (req, res) => {
     const expiryDate = getRefreshTokenExpiryDate();
 
    
-    await connection.query("DELETE FROM refresh_tokens WHERE user_id = ?", [user.id]);
+    await connection.query("DELETE FROM refresh_tokens WHERE userId = ?", [user.id]);
     await connection.query(
-      "INSERT INTO refresh_tokens (token, user_id, expiry_date) VALUES (?, ?, ?)",
+      "INSERT INTO refresh_tokens (token, userId, expiry_date) VALUES (?, ?, ?)",
       [refreshTokenString, user.id, expiryDate]
     );
 
@@ -137,8 +137,8 @@ exports.signin = async (req, res) => {
     const [roleRows] = await connection.query(
       `SELECT r.name 
        FROM roles r
-       JOIN user_roles ur ON r.id = ur.role_id
-       WHERE ur.user_id = ?`,
+       JOIN user_roles ur ON r.id = ur.roleId
+       WHERE ur.userId = ?`,
       [user.id]
     );
     const authorities = roleRows.map(role => "ROLE_" + role.name.toUpperCase());
@@ -196,7 +196,7 @@ exports.refreshToken = async (req, res) => {
     }
 
     // 3. Generar nuevo Access Token
-    const newAccessToken = jwt.sign({ id: refreshTokenData.user_id }, config.secret, {
+    const newAccessToken = jwt.sign({ id: refreshTokenData.userId }, config.secret, {
       expiresIn: config.jwtExpiration,
     });
 

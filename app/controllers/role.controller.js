@@ -1,6 +1,11 @@
 // controllers/role.controller.js
 const db = require('../models'); 
 
+// Obtener referencias a los modelos con nombres correctos
+const Role = db.roles || db.role;
+const User = db.users || db.user;
+const UserRoles = db.user_roles;
+
 // Crear un nuevo rol
 exports.createRole = async (req, res) => {
   const { name } = req.body;
@@ -9,7 +14,7 @@ exports.createRole = async (req, res) => {
   }
 
   try {
-    const role = await db.role.create({
+    const role = await Role.create({
       name: name.toLowerCase()
     });
     res.status(201).send({ id: role.id, name: role.name });
@@ -25,7 +30,7 @@ exports.createRole = async (req, res) => {
 // Obtener todos los roles
 exports.getAllRoles = async (req, res) => {
   try {
-    const roles = await db.role.findAll({
+    const roles = await Role.findAll({
       attributes: ['id', 'name', 'createdAt', 'updatedAt']
     });
     res.status(200).send(roles);
@@ -39,7 +44,7 @@ exports.getAllRoles = async (req, res) => {
 exports.getRoleById = async (req, res) => {
   const { id } = req.params;
   try {
-    const role = await db.role.findByPk(id, {
+    const role = await Role.findByPk(id, {
       attributes: ['id', 'name', 'createdAt', 'updatedAt']
     });
     
@@ -64,7 +69,7 @@ exports.updateRole = async (req, res) => {
   }
 
   try {
-    const role = await db.role.findByPk(id);
+    const role = await Role.findByPk(id);
     if (!role) {
       return res.status(404).send({ message: `Role with id ${id} not found.` });
     }
@@ -85,7 +90,7 @@ exports.deleteRole = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const role = await db.role.findByPk(id);
+    const role = await Role.findByPk(id);
     if (!role) {
       return res.status(404).send({ message: `Role with id ${id} not found.` });
     }
@@ -109,10 +114,10 @@ exports.assignRoleToUser = async (req, res) => {
 
   try {
     // Verificar si el usuario y el rol existen 
-    const user = await db.user.findByPk(userId);
+    const user = await User.findByPk(userId);
     if (!user) return res.status(404).send({ message: `User with id ${userId} not found.`});
     
-    const role = await db.role.findByPk(roleId);
+    const role = await Role.findByPk(roleId);
     if (!role) return res.status(404).send({ message: `Role with id ${roleId} not found.`});
 
     await user.addRole(role);
@@ -134,12 +139,12 @@ exports.removeRoleFromUser = async (req, res) => {
   }
   
   try {
-    const user = await db.user.findByPk(userId);
+    const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).send({ message: `User with id ${userId} not found.` });
     }
 
-    const role = await db.role.findByPk(roleId);
+    const role = await Role.findByPk(roleId);
     if (!role) {
       return res.status(404).send({ message: `Role with id ${roleId} not found.` });
     }
@@ -159,7 +164,7 @@ exports.getUserRoles = async (req, res) => {
   
   try {
     // Verificar que el usuario existe
-    const user = await db.user.findByPk(userId);
+    const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).send({ message: `User with id ${userId} not found.` });
     }
@@ -167,10 +172,10 @@ exports.getUserRoles = async (req, res) => {
     // Verificar permisos: solo puede ver sus propios roles o ser admin
     if (parseInt(userId) !== parseInt(requestingUserId)) {
       // Si no es el mismo usuario, verificar si es admin
-      const requestingUser = await db.user.findByPk(requestingUserId, {
+      const requestingUser = await User.findByPk(requestingUserId, {
         include: [{
-          model: db.role,
-          through: db.user_roles,
+          model: Role,
+          through: UserRoles,
           where: { name: 'admin' }
         }]
       });
@@ -181,10 +186,10 @@ exports.getUserRoles = async (req, res) => {
     }
 
     // Obtener los roles del usuario
-    const userWithRoles = await db.user.findByPk(userId, {
+    const userWithRoles = await User.findByPk(userId, {
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         attributes: ['id', 'name']
       }]
     });

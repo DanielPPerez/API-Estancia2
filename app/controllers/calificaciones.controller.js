@@ -1,6 +1,11 @@
 // controllers/calificaciones.controller.js
 const db = require('../models');
 
+// Obtener referencias a los modelos con nombres correctos
+const Calificaciones = db.calificaciones;
+const Proyecto = db.projects || db.proyecto;
+const User = db.users || db.user;
+
 // Crear una nueva calificación para un proyecto
 exports.createCalificacion = async (req, res) => {
   const evaluadorId = req.userId; // ID del evaluador logueado (viene de authJwt.verifyToken)
@@ -41,14 +46,14 @@ exports.createCalificacion = async (req, res) => {
 
   try {
     // 1. Verificar que el proyecto exista y obtener el ID del alumno
-    const project = await db.proyecto.findByPk(proyectoId);
+    const project = await Proyecto.findByPk(proyectoId);
     if (!project) {
       return res.status(404).send({ message: `Project with ID ${proyectoId} not found.` });
     }
     const userAlumnoIdFromProject = project.idUser;
 
     // 2. Verificar si este evaluador ya calificó este proyecto para evitar duplicados
-    const existingCalificacion = await db.calificaciones.findOne({
+    const existingCalificacion = await Calificaciones.findOne({
       where: {
         userEvaluadorId: evaluadorId,
         proyectoId: proyectoId
@@ -60,7 +65,7 @@ exports.createCalificacion = async (req, res) => {
     }
 
     // 3. Insertar la calificación
-    const calificacion = await db.calificaciones.create({
+    const calificacion = await Calificaciones.create({
       userEvaluadorId: evaluadorId,
       proyectoId: proyectoId,
       userAlumnoId: userAlumnoIdFromProject,
@@ -84,20 +89,20 @@ exports.createCalificacion = async (req, res) => {
 // Obtener todas las calificaciones (para Admin/Moderador)
 exports.getAllCalificaciones = async (req, res) => {
   try {
-    const calificaciones = await db.calificaciones.findAll({
+    const calificaciones = await Calificaciones.findAll({
       include: [
         {
-          model: db.proyecto,
+          model: Proyecto,
           as: 'proyecto',
           attributes: ['name']
         },
         {
-          model: db.user,
+          model: User,
           as: 'evaluador',
           attributes: ['username']
         },
         {
-          model: db.user,
+          model: User,
           as: 'alumno',
           attributes: ['username']
         }
@@ -115,11 +120,11 @@ exports.getAllCalificaciones = async (req, res) => {
 exports.getCalificacionesByProyectoId = async (req, res) => {
   const { proyectoId } = req.params;
   try {
-    const calificaciones = await db.calificaciones.findAll({
+    const calificaciones = await Calificaciones.findAll({
       where: { proyectoId },
       include: [
         {
-          model: db.user,
+          model: User,
           as: 'evaluador',
           attributes: ['username', 'nombre']
         }
@@ -139,16 +144,16 @@ exports.getCalificacionesByEvaluadorId = async (req, res) => {
   const evaluadorId = req.params.evaluadorId || req.userId; // Si :evaluadorId está en la ruta o es el propio user
 
   try {
-    const calificaciones = await db.calificaciones.findAll({
+    const calificaciones = await Calificaciones.findAll({
       where: { userEvaluadorId: evaluadorId },
       include: [
         {
-          model: db.proyecto,
+          model: Proyecto,
           as: 'proyecto',
           attributes: ['name']
         },
         {
-          model: db.user,
+          model: User,
           as: 'alumno',
           attributes: ['username', 'nombre']
         }
@@ -198,27 +203,28 @@ exports.updateCalificacion = async (req, res) => {
 
   try {
     // Verificar que la calificación existe
-    const calificacion = await db.calificaciones.findByPk(id);
+    const calificacion = await Calificaciones.findByPk(id);
     if (!calificacion) {
       return res.status(404).send({ message: `Calificación with ID ${id} not found.` });
     }
 
-    // Verificar que el usuario tiene rol de evaluador o admin
-    const editor = await db.user.findByPk(editorId, {
-      include: [{
-        model: db.role,
-        through: db.user_roles,
-        where: {
-          name: ['evaluador', 'admin']
-        }
-      }]
-    });
-
-    // Permitir actualización si es evaluador o admin
-    if (!editor || editor.roles.length === 0) {
-      return res.status(403).send({ message: "Forbidden: You must be an evaluator or admin to update calificaciones." });
+    // Verificar autorización: solo el evaluador que la creó o un admin puede editarla
+    if (calificacion.userEvaluadorId !== editorId) {
+      // Verificar si el editor es admin
+      const editor = await User.findByPk(editorId, {
+        include: [{
+          model: db.roles || db.role,
+          through: db.user_roles,
+          where: { name: 'admin' }
+        }]
+      });
+      
+      if (!editor || editor.roles.length === 0) {
+        return res.status(403).send({ message: "Forbidden: You are not authorized to update this calificación." });
+      }
     }
 
+    // Preparar datos de actualización
     const updateData = {};
     if (innovacion !== undefined) updateData.innovacion = parseFloat(innovacion);
     if (mercado !== undefined) updateData.mercado = parseFloat(mercado);
@@ -227,7 +233,7 @@ exports.updateCalificacion = async (req, res) => {
     if (pitch !== undefined) updateData.pitch = parseFloat(pitch);
     if (observaciones !== undefined) updateData.observaciones = observaciones;
     if (finalTotal !== undefined) updateData.total = finalTotal;
-    
+
     if (Object.keys(updateData).length === 0) {
       return res.status(400).send({ message: "No fields to update provided." });
     }
@@ -236,44 +242,43 @@ exports.updateCalificacion = async (req, res) => {
     res.status(200).send({ message: "Calificación updated successfully." });
 
   } catch (error) {
-    console.error(`Error updating calificación ${id}:`, error);
+    console.error(`Error updating calificación with ID ${id}:`, error);
     res.status(500).send({ message: error.message || "Failed to update calificación." });
   }
 };
 
-// Eliminar una calificación (cualquier evaluador o admin)
+// Eliminar una calificación (solo el evaluador que la creó o admin)
 exports.deleteCalificacion = async (req, res) => {
-  const { id } = req.params; 
+  const { id } = req.params;
   const deleterId = req.userId;
 
   try {
-    // Verificar que la calificación existe
-    const calificacion = await db.calificaciones.findByPk(id);
+    const calificacion = await Calificaciones.findByPk(id);
     if (!calificacion) {
       return res.status(404).send({ message: `Calificación with ID ${id} not found.` });
     }
 
-    // Verificar que el usuario tiene rol de evaluador o admin
-    const deleter = await db.user.findByPk(deleterId, {
-      include: [{
-        model: db.role,
-        through: db.user_roles,
-        where: {
-          name: ['evaluador', 'admin']
-        }
-      }]
-    });
-
-    // Permitir eliminación si es evaluador o admin
-    if (!deleter || deleter.roles.length === 0) {
-      return res.status(403).send({ message: "Forbidden: You must be an evaluator or admin to delete calificaciones." });
+    // Verificar autorización: solo el evaluador que la creó o un admin puede eliminarla
+    if (calificacion.userEvaluadorId !== deleterId) {
+      // Verificar si el deleter es admin
+      const deleter = await User.findByPk(deleterId, {
+        include: [{
+          model: db.roles || db.role,
+          through: db.user_roles,
+          where: { name: 'admin' }
+        }]
+      });
+      
+      if (!deleter || deleter.roles.length === 0) {
+        return res.status(403).send({ message: "Forbidden: You are not authorized to delete this calificación." });
+      }
     }
 
     await calificacion.destroy();
     res.status(200).send({ message: "Calificación deleted successfully." });
 
   } catch (error) {
-    console.error(`Error deleting calificación ${id}:`, error);
+    console.error(`Error deleting calificación with ID ${id}:`, error);
     res.status(500).send({ message: error.message || "Failed to delete calificación." });
   }
 };

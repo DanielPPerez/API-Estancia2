@@ -2,6 +2,12 @@ const db = require('../models');
 const fs = require("fs");
 const path = require("path");
 
+// Obtener referencias a los modelos con nombres correctos
+const Proyecto = db.projects || db.proyecto;
+const User = db.users || db.user;
+const Role = db.roles || db.role;
+const UserRoles = db.user_roles;
+
 // Crear un nuevo proyecto 
 exports.createProject = async (req, res) => {
   const userId = req.userId; 
@@ -22,7 +28,7 @@ exports.createProject = async (req, res) => {
   }
 
   try {
-    const project = await db.proyecto.create({
+    const project = await Proyecto.create({
       idUser: userId,
       name: nombreProyecto,
       description: descripcion,
@@ -46,9 +52,9 @@ exports.createProject = async (req, res) => {
 // Obtener todos los proyectos (con información básica del usuario)
 exports.getAllProjects = async (req, res) => {
   try {
-    const projects = await db.proyecto.findAll({
+    const projects = await Proyecto.findAll({
       include: [{
-        model: db.user,
+        model: User,
         as: 'user',
         attributes: ['username', 'nombre', 'categoria']
       }],
@@ -65,9 +71,9 @@ exports.getAllProjects = async (req, res) => {
 exports.getProjectById = async (req, res) => {
   const { id } = req.params;
   try {
-    const project = await db.proyecto.findByPk(id, {
+    const project = await Proyecto.findByPk(id, {
       include: [{
-        model: db.user,
+        model: User,
         as: 'user',
         attributes: ['username', 'nombre', 'email']
       }]
@@ -88,10 +94,10 @@ exports.getProjectById = async (req, res) => {
 exports.getProjectsByUserId = async (req, res) => {
   const { userId } = req.params;
   try {
-    const user = await db.user.findByPk(userId, {
+    const user = await User.findByPk(userId, {
       attributes: ['id', 'username', 'categoria', 'carrera'],
       include: [{
-        model: db.proyecto,
+        model: Proyecto,
         as: 'proyectos',
         attributes: ['id', 'name', 'description', 'videoLink', 'createdAt'],
         order: [['createdAt', 'DESC']]
@@ -116,7 +122,7 @@ exports.updateProject = async (req, res) => {
   const userId = req.userId; 
 
   try {
-    const project = await db.proyecto.findByPk(id);
+    const project = await Proyecto.findByPk(id);
     if (!project) {
       return res.status(404).send({ message: `Project with id ${id} not found.` });
     }
@@ -124,10 +130,10 @@ exports.updateProject = async (req, res) => {
     // Autorización: solo el dueño o un admin puede editar
     if (project.idUser !== userId) {
       // Verificar si el usuario es admin
-      const user = await db.user.findByPk(userId, {
+      const user = await User.findByPk(userId, {
         include: [{
-          model: db.role,
-          through: db.user_roles,
+          model: Role,
+          through: UserRoles,
           where: { name: 'admin' }
         }]
       });
@@ -182,17 +188,17 @@ exports.deleteProject = async (req, res) => {
   const userId = req.userId; 
 
   try {
-    const project = await db.proyecto.findByPk(id);
+    const project = await Proyecto.findByPk(id);
     if (!project) {
       return res.status(404).send({ message: `Project with id ${id} not found.` });
     }
 
     // Autorización: solo el dueño o un admin puede eliminar
     if (project.idUser !== userId) {
-      const user = await db.user.findByPk(userId, {
+      const user = await User.findByPk(userId, {
         include: [{
-          model: db.role,
-          through: db.user_roles,
+          model: Role,
+          through: UserRoles,
           where: { name: 'admin' }
         }]
       });
@@ -202,88 +208,62 @@ exports.deleteProject = async (req, res) => {
       }
     }
 
-    // Guardar rutas de archivos antes de eliminar
-    const technicalSheetPath = project.technicalSheet;
-    const canvaModelPath = project.canvaModel;
-    const projectPdfPath = project.projectPdf;
+    // Eliminar archivos asociados
+    if (project.technicalSheet && fs.existsSync(project.technicalSheet)) {
+      fs.unlinkSync(project.technicalSheet);
+    }
+    if (project.canvaModel && fs.existsSync(project.canvaModel)) {
+      fs.unlinkSync(project.canvaModel);
+    }
+    if (project.projectPdf && fs.existsSync(project.projectPdf)) {
+      fs.unlinkSync(project.projectPdf);
+    }
 
     await project.destroy();
-
-    // Eliminar archivos del sistema de archivos
-    if (technicalSheetPath && fs.existsSync(technicalSheetPath)) {
-      fs.unlinkSync(technicalSheetPath);
-    }
-    if (canvaModelPath && fs.existsSync(canvaModelPath)) {
-      fs.unlinkSync(canvaModelPath);
-    }
-    if (projectPdfPath && fs.existsSync(projectPdfPath)) {
-      fs.unlinkSync(projectPdfPath);
-    }
-
-    res.status(200).send({ message: "Project and associated files deleted successfully." });
+    res.status(200).send({ message: "Project deleted successfully." });
   } catch (error) {
     console.error(`Error deleting project with id ${id}:`, error);
-    res.status(500).send({ message: error.message || "Could not delete project." });
+    res.status(500).send({ message: error.message || "Could not delete project with id " + id });
   }
 };
 
-// Descargar un archivo de proyecto
+// Descargar archivo de proyecto
 exports.downloadProjectFile = async (req, res) => {
-  const { projectId, fileType } = req.params; 
-
-  if (!projectId || !fileType) {
-    return res.status(400).send({ message: "Project ID and File Type are required." });
-  }
-
-  let filePathColumn;
-  switch (fileType.toLowerCase()) {
-    case 'technicalsheet':
-      filePathColumn = 'technicalSheet';
-      break;
-    case 'canvamodel':
-      filePathColumn = 'canvaModel';
-      break;
-    case 'projectpdf':
-      filePathColumn = 'projectPdf';
-      break;
-    default:
-      return res.status(400).send({ message: "Invalid file type specified." });
-  }
-
+  const { projectId, fileType } = req.params;
+  
   try {
-    const project = await db.proyecto.findByPk(projectId);
+    const project = await Proyecto.findByPk(projectId);
     if (!project) {
-      return res.status(404).send({ message: `Project with id ${projectId} not found.` });
+      return res.status(404).send({ message: "Project not found." });
     }
 
-    const filePath = project[filePathColumn];
-    if (!filePath) {
-      return res.status(404).send({ message: `File of type '${fileType}' not found for this project.` });
+    let filePath = null;
+    let fileName = '';
+
+    switch (fileType) {
+      case 'technicalSheet':
+        filePath = project.technicalSheet;
+        fileName = `ficha_tecnica_${project.name}.pdf`;
+        break;
+      case 'canvaModel':
+        filePath = project.canvaModel;
+        fileName = `modelo_canvas_${project.name}.pdf`;
+        break;
+      case 'projectPdf':
+        filePath = project.projectPdf;
+        fileName = `proyecto_${project.name}.pdf`;
+        break;
+      default:
+        return res.status(400).send({ message: "Invalid file type." });
     }
 
-    if (!fs.existsSync(filePath)) {
-      console.error("File does not exist on filesystem:", filePath);
-      return res.status(404).send({ message: "The file does not exist on the server." });
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(404).send({ message: "File not found." });
     }
 
-    // Obtener el nombre original del archivo para la descarga
-    const filename = path.basename(filePath); 
-
-    res.download(filePath, filename, (err) => {
-      if (err) {
-        console.error("Error downloading file:", err);
-        if (!res.headersSent) {
-          res.status(500).send({ message: "Could not download the file." });
-        }
-      } else {
-        console.log("File downloaded successfully:", filename);
-      }
-    });
-
-  } catch (err) {
-    console.error("Error in downloadProjectFile:", err);
-    if (!res.headersSent) {
-      res.status(500).send({ message: "Server error while trying to download file." });
-    }
+    res.download(filePath, fileName);
+  } catch (error) {
+    console.error("Error downloading project file:", error);
+    res.status(500).send({ message: "Error downloading file." });
   }
 };

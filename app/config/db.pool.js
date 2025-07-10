@@ -1,7 +1,6 @@
 // Contenido CORRECTO y LIMPIO para: app/config/db.pool.js
 
 const mysql = require('mysql2/promise');
-const dbConfig = require('./db.config.js'); // Importamos la configuración
 
 // Creamos el pool de conexión usando la configuración
 const pool = mysql.createPool({

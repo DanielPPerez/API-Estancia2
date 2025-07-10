@@ -129,7 +129,7 @@ exports.signin = async (req, res) => {
    
     await connection.query("DELETE FROM refreshTokens WHERE userId = ?", [user.id]);
     await connection.query(
-      "INSERT INTO refreshTokens (token, userId, expiryDate) VALUES (?, ?, ?)",
+      "INSERT INTO refreshTokens (token, userId, expiryDate, createdAt, updatedAt) VALUES (?, ?, ?, NOW(), NOW())",
       [refreshTokenString, user.id, expiryDate]
     );
 

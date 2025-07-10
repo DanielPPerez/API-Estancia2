@@ -3,21 +3,11 @@ const mysql = require('mysql2/promise');
 require('dotenv').config(); // Esto carga las variables de tu archivo .env localmente
 
 const pool = mysql.createPool({
-   // Para Railway, usa MYSQLHOST. Para local, usa DB_HOST o '127.0.0.1'
-   HOST: process.env.MYSQLHOST || process.env.DB_HOST || '127.0.0.1',
-
-   // Para Railway, usa MYSQLUSER. Para local, usa DB_USER.
-   USER: process.env.MYSQLUSER || process.env.DB_USER,
- 
-   // Para Railway, usa MYSQLPASSWORD. Para local, usa DB_PASSWORD.
-   PASSWORD: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
- 
-   // Para Railway, usa MYSQLDATABASE. Para local, usa DB_NAME.
-   DB: process.env.MYSQLDATABASE || process.env.DB_NAME,
- 
-   // Para Railway, usa MYSQLPORT. Para local, usa DB_PORT.
-   PORT: process.env.MYSQLPORT || process.env.DB_PORT,
-  
+   host: process.env.MYSQLHOST || process.env.DB_HOST || '127.0.0.1',
+   user: process.env.MYSQLUSER || process.env.DB_USER,
+   password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
+   database: process.env.MYSQLDATABASE || process.env.DB_NAME,
+   port: process.env.MYSQLPORT || process.env.DB_PORT,
   // Estos settings están bien como están
   waitForConnections: true,
   connectionLimit: parseInt(process.env.DB_POOL_MAX || '10'), 

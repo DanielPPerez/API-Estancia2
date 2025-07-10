@@ -1,9 +1,15 @@
-// DESPUÉS
-const pool = require('./db.config.js');
+// Importamos los modelos de Sequelize, no la configuración
+const db = require("../models"); 
 const bcrypt = require('bcryptjs');
 
-// --- DATOS DE CONFIGURACIÓN ---
+// Los modelos están disponibles en el objeto 'db'
+const Role = db.role;
+const User = db.user;
+
+// --- DATOS DE CONFIGURACIÓN (sin cambios) ---
 const ROLES = ['user', 'moderator', 'admin', 'evaluador'];
+
+
 
 const USERS = [
   // Administradora
@@ -50,81 +56,75 @@ const USERS = [
   }
 ];
 
-// --- FUNCIONES DE LÓGICA ---
+// --- FUNCIONES DE LÓGICA (Reescritas con Sequelize) ---
+
 async function createRoles() {
-  console.log("Checking and creating roles...");
+  console.log("Checking and creating roles using Sequelize...");
   try {
     for (const roleName of ROLES) {
-      const [rows] = await pool.query("SELECT id FROM roles WHERE name = ?", [roleName]);
-      if (rows.length === 0) {
-        await pool.query("INSERT INTO roles (name, created_at, updated_at) VALUES (?, NOW(), NOW())", [roleName]);
+      // Usamos Role.findOrCreate. Es el método perfecto para esto.
+      // Busca un rol por nombre, si no lo encuentra, lo crea.
+      const [role, created] = await Role.findOrCreate({
+        where: { name: roleName }
+      });
+      if (created) {
         console.log(` -> Role '${roleName}' created.`);
       }
     }
     console.log("Roles are up to date.");
   } catch (error) {
-    console.error("Error creating roles:", error);
-    // Propagamos el error para que el proceso de inicio se detenga si algo sale mal con los roles
-    throw error; 
-  }
-}
-
-async function createUsersAndAssignRoles() {
-  console.log("Checking and creating initial users...");
-  try {
-    const [roles] = await pool.query("SELECT id, name FROM roles");
-    const roleMap = new Map(roles.map(role => [role.name, role.id]));
-
-    for (const userData of USERS) {
-      const [userRows] = await pool.query("SELECT id FROM users WHERE email = ?", [userData.email]);
-      let userId;
-
-      if (userRows.length === 0) {
-        const hashedPassword = bcrypt.hashSync(userData.password, 8);
-        const [result] = await pool.query(
-          "INSERT INTO users (username, email, password, nombre, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())",
-          [userData.username, userData.email, hashedPassword, userData.nombre]
-        );
-        userId = result.insertId;
-        console.log(` -> User '${userData.email}' created with ID: ${userId}.`);
-      } else {
-        userId = userRows[0].id;
-      }
-
-      for (const roleName of userData.roles) {
-        const roleId = roleMap.get(roleName);
-        if (roleId) {
-          const [userRoleRows] = await pool.query(
-            "SELECT * FROM user_roles WHERE userId = ? AND roleId = ?",
-            [userId, roleId]
-          );
-          if (userRoleRows.length === 0) {
-            // Añadimos las columnas createdAt y updatedAt con el valor NOW() de MySQL
-            await pool.query(
-              "INSERT INTO user_roles (userId, roleId, createdAt, updatedAt) VALUES (?, ?, NOW(), NOW())",
-              [userId, roleId]
-            );
-            console.log(`    - Role '${roleName}' assigned to user '${userData.email}'.`);
-        }
-        }
-      }
-    }
-    console.log("Initial users are up to date.");
-  } catch (error) {
-    console.error("Error creating users and assigning roles:", error);
+    console.error("Error creating roles with Sequelize:", error);
     throw error;
   }
 }
 
-// --- FUNCIÓN PRINCIPAL EXPORTADA ---
+async function createUsers() {
+  console.log("Checking and creating initial users using Sequelize...");
+  try {
+    for (const userData of USERS) {
+      // 1. Buscamos o creamos el usuario
+      const [user, created] = await User.findOrCreate({
+        where: { email: userData.email },
+        // 'defaults' se usa solo si el usuario necesita ser creado
+        defaults: {
+          username: userData.username,
+          nombre: userData.nombre,
+          password: bcrypt.hashSync(userData.password, 8)
+        }
+      });
+
+      // 2. Si el usuario fue creado, le asignamos sus roles
+      if (created) {
+        console.log(` -> User '${userData.email}' created.`);
+        
+        // Buscamos los objetos de Role que corresponden a los nombres de los roles
+        const rolesInDb = await Role.findAll({
+          where: {
+            name: userData.roles // Sequelize entiende este array y busca todos los roles
+          }
+        });
+
+        // Usamos el método mágico 'setRoles' que Sequelize crea para la asociación
+        await user.setRoles(rolesInDb);
+        console.log(`    - Roles assigned for '${userData.email}'.`);
+      }
+    }
+    console.log("Initial users are up to date.");
+  } catch (error) {
+    console.error("Error creating users with Sequelize:", error);
+    throw error;
+  }
+}
+
+// --- FUNCIÓN PRINCIPAL EXPORTADA (sin cambios en la lógica de llamada) ---
 exports.initialSetup = async () => {
   try {
     console.log("--- Starting Initial Server Setup ---");
     await createRoles();
-    await createUsersAndAssignRoles();
+    await createUsers();
     console.log("--- Initial Setup Complete ---");
   } catch(error) {
     console.error("!!! CRITICAL: Initial setup failed. Server might not work as expected. !!!");
-    console.error(error);
+    // No es necesario imprimir el error dos veces, ya se imprime en la función que falla.
   }
 };

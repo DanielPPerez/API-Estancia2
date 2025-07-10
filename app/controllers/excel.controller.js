@@ -1,22 +1,27 @@
 // controllers/excel.controller.js
 const ExcelJS = require('exceljs');
-const pool = require('../config/db.config');
+const db = require('../models');
 const fs = require('fs');
 const path = require('path');
 
 // --- FUNCIONES DE VALIDACIÓN ---
 
-// Función para obtener la estructura de una tabla de la base de datos
-async function getTableStructure(tableName, poolConnection) {
+// Función para obtener la estructura de una tabla usando Sequelize
+async function getTableStructure(tableName) {
   try {
-    const [columns] = await poolConnection.query(`DESCRIBE ${tableName}`);
-    return columns.map(col => ({
-      name: col.Field,
-      type: col.Type,
-      null: col.Null,
-      key: col.Key,
-      default: col.Default,
-      extra: col.Extra
+    const model = db[tableName];
+    if (!model) {
+      throw new Error(`Model ${tableName} not found`);
+    }
+    
+    const attributes = model.rawAttributes;
+    return Object.keys(attributes).map(key => ({
+      name: key,
+      type: attributes[key].type.toString(),
+      null: attributes[key].allowNull,
+      key: attributes[key].primaryKey ? 'PRI' : '',
+      default: attributes[key].defaultValue,
+      extra: attributes[key].autoIncrement ? 'auto_increment' : ''
     }));
   } catch (error) {
     console.error(`Error getting structure for table ${tableName}:`, error);
@@ -141,7 +146,7 @@ function validateDataTypes(rowData, dbColumns, tableName) {
 function validateCalificacionesData(rowData, tableName) {
   const errors = [];
   
-  // Validar que las calificaciones estén en el rango correcto (0-10)
+  // Validar que las calificaciones estén en el rango correcto (0-5)
   const calificacionFields = ['innovacion', 'mercado', 'tecnica', 'financiera', 'pitch'];
   
   for (const field of calificacionFields) {
@@ -149,8 +154,8 @@ function validateCalificacionesData(rowData, tableName) {
       const value = Number(rowData[field]);
       if (isNaN(value)) {
         errors.push(`Tabla ${tableName}: La calificación '${field}' debe ser un número, valor recibido: ${rowData[field]}`);
-      } else if (value < 0 || value > 10) {
-        errors.push(`Tabla ${tableName}: La calificación '${field}' debe estar entre 0 y 10, valor recibido: ${value}`);
+      } else if (value < 0 || value > 5) {
+        errors.push(`Tabla ${tableName}: La calificación '${field}' debe estar entre 0 y 5, valor recibido: ${value}`);
       }
     }
   }
@@ -221,18 +226,12 @@ function validateProjectsData(rowData, tableName) {
   }
   
   // Validar formato de URL para el video_link si está presente
-  if (rowData.video_link && rowData.video_link !== null && rowData.video_link !== undefined) {
+  if (rowData.videoLink && rowData.videoLink !== null && rowData.videoLink !== undefined) {
     try {
-      new URL(String(rowData.video_link));
+      new URL(String(rowData.videoLink));
     } catch (error) {
-      errors.push(`Tabla ${tableName}: El enlace del video '${rowData.video_link}' no es una URL válida`);
+      errors.push(`Tabla ${tableName}: El enlace del video '${rowData.videoLink}' no es una URL válida`);
     }
-  }
-  
-  // Validar que la categoría esté en las opciones permitidas
-  const allowedCategories = ['tecnologia', 'salud', 'educacion', 'medio_ambiente', 'social', 'otros'];
-  if (rowData.category && !allowedCategories.includes(String(rowData.category).toLowerCase())) {
-    errors.push(`Tabla ${tableName}: La categoría '${rowData.category}' no es válida. Categorías permitidas: ${allowedCategories.join(', ')}`);
   }
   
   return errors;
@@ -253,7 +252,7 @@ function validateRolesData(rowData, tableName) {
   }
   
   // Validar que el rol esté en las opciones permitidas
-  const allowedRoles = ['user', 'admin', 'evaluador'];
+  const allowedRoles = ['user', 'admin', 'evaluador', 'moderator'];
   if (rowData.name && !allowedRoles.includes(String(rowData.name).toLowerCase())) {
     errors.push(`Tabla ${tableName}: El rol '${rowData.name}' no es válido. Roles permitidos: ${allowedRoles.join(', ')}`);
   }
@@ -264,15 +263,22 @@ function validateRolesData(rowData, tableName) {
 // --- EXPORTACIÓN A EXCEL ---
 
 // Función auxiliar para añadir una hoja a un workbook de ExcelJS
-async function addSheetFromTable(workbook, tableName, poolConnection) {
+async function addSheetFromTable(workbook, tableName) {
   const sheet = workbook.addWorksheet(tableName.substring(0, 30)); // Nombre de hoja limitado a 30 caracteres
   try {
-    const [rows, fields] = await poolConnection.query(`SELECT * FROM ${tableName}`);
+    const model = db[tableName];
+    if (!model) {
+      sheet.addRow([`Model ${tableName} not found`]);
+      return;
+    }
+    
+    const rows = await model.findAll();
     if (rows.length > 0) {
       // Añadir cabeceras (nombres de columnas)
-      sheet.columns = fields.map(field => ({ header: field.name, key: field.name, width: 20 }));
+      const headers = Object.keys(rows[0].dataValues);
+      sheet.columns = headers.map(header => ({ header, key: header, width: 20 }));
       // Añadir filas de datos
-      sheet.addRows(rows);
+      sheet.addRows(rows.map(row => row.dataValues));
     } else {
       sheet.addRow([`No data found in table ${tableName}`]);
     }
@@ -291,14 +297,11 @@ exports.exportDatabaseToExcel = async (req, res) => {
   workbook.modified = new Date();
 
   // Lista de tablas que quieres exportar (ajusta según tus necesidades)
-  const tablesToExport = ['users', 'roles', 'user_roles', 'projects', 'calificaciones', 'refresh_tokens'];
-  let connection;
+  const tablesToExport = ['users', 'roles', 'user_roles', 'proyecto', 'calificaciones', 'refreshToken'];
 
   try {
-    connection = await pool.getConnection(); // Obtener una conexión del pool
-
     for (const tableName of tablesToExport) {
-      await addSheetFromTable(workbook, tableName, connection);
+      await addSheetFromTable(workbook, tableName);
     }
 
     // Preparar el archivo para la descarga
@@ -318,16 +321,13 @@ exports.exportDatabaseToExcel = async (req, res) => {
   } catch (error) {
     console.error('Error exporting database to Excel:', error);
     res.status(500).send({ message: 'Failed to export database to Excel.', error: error.message });
-  } finally {
-    if (connection) connection.release(); // Liberar la conexión
   }
 };
 
 // --- IMPORTACIÓN DESDE EXCEL Y ACTUALIZACIÓN ---
 
 // Función auxiliar para procesar una hoja e intentar actualizar/insertar en una tabla
-// Esta es la parte más compleja debido a la lógica de actualización/inserción
-async function processSheetAndUpdateTable(sheet, tableName, poolConnection) {
+async function processSheetAndUpdateTable(sheet, tableName) {
   let updatedRows = 0;
   let insertedRows = 0;
   let errors = [];
@@ -344,7 +344,7 @@ async function processSheetAndUpdateTable(sheet, tableName, poolConnection) {
 
   // VALIDACIÓN DE ESTRUCTURA DE TABLA
   try {
-    const dbColumns = await getTableStructure(tableName, poolConnection);
+    const dbColumns = await getTableStructure(tableName);
     const structureValidation = validateTableStructure(headers, dbColumns, tableName);
     
     if (structureValidation.errors.length > 0) {
@@ -353,6 +353,12 @@ async function processSheetAndUpdateTable(sheet, tableName, poolConnection) {
     }
     
     warnings.push(...structureValidation.warnings);
+    
+    const model = db[tableName];
+    if (!model) {
+      errors.push(`Model ${tableName} not found`);
+      return { updatedRows, insertedRows, errors, warnings };
+    }
     
     // Iterar sobre las filas de datos (empezando desde la fila 2)
     for (let i = 2; i <= sheet.rowCount; i++) {
@@ -369,9 +375,6 @@ async function processSheetAndUpdateTable(sheet, tableName, poolConnection) {
           } else if (cellValue && typeof cellValue === 'object' && cellValue.hasOwnProperty('text')) {
               cellValue = cellValue.text; // Para rich text o hipervínculos
           }
-          // Convertir fechas de Excel (número de serie) a formato de fecha JS/MySQL si es necesario
-          // Aquí necesitarías identificar las columnas de fecha y parsearlas.
-          // Ejemplo simple: if (header.includes('_at') || header.includes('Date')) { cellValue = ExcelDateToJSDate(cellValue); }
 
           rowDataObject[header] = cellValue === undefined ? null : cellValue;
       });
@@ -402,7 +405,7 @@ async function processSheetAndUpdateTable(sheet, tableName, poolConnection) {
       }
 
       // VALIDACIÓN ESPECÍFICA PARA PROYECTOS
-      if (tableName === 'projects') {
+      if (tableName === 'proyecto') {
         const projectsErrors = validateProjectsData(rowDataObject, tableName);
         if (projectsErrors.length > 0) {
           errors.push(`Fila ${i}: ${projectsErrors.join(', ')}`);
@@ -419,11 +422,7 @@ async function processSheetAndUpdateTable(sheet, tableName, poolConnection) {
         }
       }
 
-      // Lógica de Actualización o Inserción
-      // Asumimos que la tabla tiene una columna 'id' como Primary Key
-      // Si el 'id' está presente en rowDataObject y no es null/undefined, intentamos UPDATE.
-      // De lo contrario, intentamos INSERT.
-
+      // Lógica de Actualización o Inserción usando Sequelize
       try {
         if (rowDataObject.id !== null && rowDataObject.id !== undefined && String(rowDataObject.id).trim() !== "") {
           // Intento de UPDATE
@@ -432,48 +431,24 @@ async function processSheetAndUpdateTable(sheet, tableName, poolConnection) {
           delete fieldsToUpdate.id; // No actualizamos el ID
 
           // Ignorar created_at para no sobreescribirlo en updates si está en el Excel
-          if ('created_at' in fieldsToUpdate) delete fieldsToUpdate.created_at;
-          // Forzar updated_at a la fecha actual si la columna existe en la tabla
-          if ((await poolConnection.query(`SHOW COLUMNS FROM ${tableName} LIKE 'updated_at'`))[0].length > 0) {
-              fieldsToUpdate.updated_at = new Date();
-          }
-
-          const setClauses = Object.keys(fieldsToUpdate).map(key => `${key} = ?`).join(', ');
-          const values = Object.values(fieldsToUpdate);
+          if ('createdAt' in fieldsToUpdate) delete fieldsToUpdate.createdAt;
           
-          if (setClauses) { // Solo actualizar si hay campos que actualizar
-              const [result] = await poolConnection.query(
-                `UPDATE ${tableName} SET ${setClauses} WHERE id = ?`,
-                [...values, id]
-              );
-              if (result.affectedRows > 0) updatedRows++;
-              // Si affectedRows es 0, puede que el ID no existiera o los datos eran idénticos.
-              // Podrías intentar un INSERT si affectedRows es 0 y el ID no existía.
+          if (Object.keys(fieldsToUpdate).length > 0) {
+            const [affectedRows] = await model.update(fieldsToUpdate, {
+              where: { id: id }
+            });
+            if (affectedRows > 0) updatedRows++;
           }
 
         } else {
           // Intento de INSERT
-          // Si el ID venía como null/vacío o no venía, se asume que es una nueva fila.
-          // Si la tabla tiene ID autoincremental, no deberíamos pasar `id` en el insert.
           const fieldsToInsert = { ...rowDataObject };
           if (fieldsToInsert.hasOwnProperty('id') && (fieldsToInsert.id === null || String(fieldsToInsert.id).trim() === "")) {
               delete fieldsToInsert.id;
           }
 
-          // Asegurarse de que las columnas de fecha sean válidas o null
-          // (aquí se necesitaría más lógica para parsear fechas de Excel si vienen en formato numérico)
-
-          const columns = Object.keys(fieldsToInsert).join(', ');
-          const placeholders = Object.keys(fieldsToInsert).map(() => '?').join(', ');
-          const values = Object.values(fieldsToInsert);
-
-          if (columns) {
-              const [result] = await poolConnection.query(
-                `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`,
-                values
-              );
-              if (result.insertId) insertedRows++;
-          }
+          const newRecord = await model.create(fieldsToInsert);
+          if (newRecord) insertedRows++;
         }
       } catch (error) {
         console.error(`Error processing row ${i} for table ${tableName}:`, error.message, "Row Data:", rowDataObject);
@@ -495,17 +470,15 @@ exports.importFromExcelAndUpdate = async (req, res) => {
 
   const workbook = new ExcelJS.Workbook();
   const filePath = req.file.path;
-  let connection;
   let results = {};
   let overallErrors = [];
   let overallWarnings = [];
 
   try {
-    connection = await pool.getConnection();
     await workbook.xlsx.readFile(filePath);
 
     // Lista de tablas permitidas para importación
-    const allowedTables = ['users', 'roles', 'user_roles', 'projects', 'calificaciones', 'refresh_tokens'];
+    const allowedTables = ['users', 'roles', 'user_roles', 'proyecto', 'calificaciones', 'refreshToken'];
 
     // VALIDACIÓN DEL FORMATO DEL EXCEL
     const excelFormatValidation = validateExcelFormat(workbook, allowedTables);
@@ -518,7 +491,6 @@ exports.importFromExcelAndUpdate = async (req, res) => {
     }
 
     // Iterar sobre cada hoja del Excel
-    // Asumimos que el nombre de la hoja corresponde al nombre de la tabla
     for (const worksheet of workbook.worksheets) {
         const tableName = worksheet.name;
         
@@ -529,34 +501,26 @@ exports.importFromExcelAndUpdate = async (req, res) => {
             continue;
         }
         
-        // VALIDACIÓN: Verificar que la tabla existe en la base de datos
-        const [tableExists] = await connection.query("SHOW TABLES LIKE ?", [tableName]);
-        if (tableExists.length === 0) {
-            console.warn(`Sheet name '${tableName}' does not match any known table. Skipping.`);
-            overallErrors.push(`Sheet name '${tableName}' does not match any known table. Skipping.`);
+        // VALIDACIÓN: Verificar que el modelo existe
+        if (!db[tableName]) {
+            console.warn(`Sheet name '${tableName}' does not match any known model. Skipping.`);
+            overallErrors.push(`Sheet name '${tableName}' does not match any known model. Skipping.`);
             continue;
         }
 
         console.log(`Processing sheet: ${tableName}`);
-        await connection.beginTransaction(); // Transacción por tabla
         try {
-            const result = await processSheetAndUpdateTable(worksheet, tableName, connection);
+            const result = await processSheetAndUpdateTable(worksheet, tableName);
             results[tableName] = result;
             
             if (result.errors.length > 0) {
-                // Si hay errores críticos en una hoja, hacer rollback para esa tabla
-                await connection.rollback();
-                console.log(`Rollback for table ${tableName} due to critical errors.`);
                 overallErrors.push(...result.errors.map(e => `Table ${tableName}: ${e}`));
-            } else {
-                await connection.commit();
-                if (result.warnings.length > 0) {
-                    overallWarnings.push(...result.warnings.map(w => `Table ${tableName}: ${w}`));
-                }
+            }
+            if (result.warnings.length > 0) {
+                overallWarnings.push(...result.warnings.map(w => `Table ${tableName}: ${w}`));
             }
         } catch (tableError) {
-            await connection.rollback();
-            console.error(`Critical error processing table ${tableName}, rollback performed:`, tableError);
+            console.error(`Critical error processing table ${tableName}:`, tableError);
             overallErrors.push(`Critical error processing table ${tableName}: ${tableError.message}`);
         }
     }
@@ -572,7 +536,6 @@ exports.importFromExcelAndUpdate = async (req, res) => {
     console.error('Error importing from Excel:', error);
     res.status(500).send({ message: 'Failed to import from Excel.', error: error.message });
   } finally {
-    if (connection) connection.release();
     // Eliminar el archivo subido después de procesarlo
     if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);

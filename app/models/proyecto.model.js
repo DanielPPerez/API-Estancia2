@@ -1,13 +1,20 @@
 module.exports = (sequelize, Sequelize) => {
   const Proyecto = sequelize.define("proyectos", {
+    id: {
+      type: Sequelize.INTEGER,
+      primaryKey: true,
+      autoIncrement: true, // Importante para PostgreSQL
+    },
     idUser: {
       type: Sequelize.INTEGER,
+      allowNull: false,
     },
     name: {
       type: Sequelize.STRING,
+      allowNull: false,
     },
     description: {
-      type: Sequelize.STRING,
+      type: Sequelize.TEXT, // Cambiar a TEXT para descripciones largas
     },
     videoLink: {
       type: Sequelize.STRING,
@@ -21,6 +28,13 @@ module.exports = (sequelize, Sequelize) => {
     projectPdf: {
       type: Sequelize.STRING,
     },
+    estatus: {
+      type: Sequelize.STRING,
+      defaultValue: 'no subido',
+    },
+  }, {
+    timestamps: true, // Agregar createdAt y updatedAt automáticamente
+    tableName: 'projects', // Asegurar nombre de tabla
   });
 
   Proyecto.associate = (models) => {

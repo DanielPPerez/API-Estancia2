@@ -1,17 +1,28 @@
 // user.model.js
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define("user", {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true, // Importante para PostgreSQL
+    },
     username: {
       type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
     },
     email: {
       type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
     },
     password: {
       type: DataTypes.STRING,
+      allowNull: false,
     },
     nombre: {
       type: DataTypes.STRING,
+      allowNull: false,
     },
     carrera: {
       type: DataTypes.STRING,
@@ -22,6 +33,9 @@ module.exports = (sequelize, DataTypes) => {
     categoria: {
       type: DataTypes.STRING,
     },
+  }, {
+    timestamps: true, // Agregar createdAt y updatedAt automáticamente
+    tableName: 'users', // Asegurar nombre de tabla
   });
 
   User.associate = (models) => {

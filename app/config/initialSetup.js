@@ -9,12 +9,9 @@ const User = db.user;
 // --- DATOS DE CONFIGURACIÓN (sin cambios) ---
 const ROLES = ['user', 'moderator', 'admin', 'evaluador'];
 
-
-
 const USERS = [
   // Administradora
   {
-    id: 1,
     email: 'cmadariaga@upchiapas.edu.mx',
     username: 'Claudia Madariaga',
     nombre: 'Claudia Madariaga',
@@ -23,7 +20,6 @@ const USERS = [
   },
   // Evaluadores
   {
-    id: 2,
     email: 'paniawoah@gmail.com',
     username: 'Daniel Paniagua',
     nombre: 'Daniel Paniagua',
@@ -31,7 +27,6 @@ const USERS = [
     roles: ['evaluador', 'user']
   },
   {
-    id: 3,
     email: 'roberto.borges@seyt.gob.mx',
     username: 'Roberto Borges',
     nombre: 'Roberto Borges',
@@ -39,7 +34,6 @@ const USERS = [
     roles: ['evaluador', 'user']
   },
   {
-    id: 4,
     email: 'capacitaeconomia@gmail.com',
     username: 'Mauricio Camacho',
     nombre: 'Mauricio Camacho',
@@ -47,7 +41,6 @@ const USERS = [
     roles: ['evaluador', 'user']
   },
   {
-    id: 5,
     email: 'dpedrero@hotmail.com',
     username: 'Damian Pedrero',
     nombre: 'Damian Pedrero',
@@ -57,6 +50,19 @@ const USERS = [
 ];
 
 // --- FUNCIONES DE LÓGICA (Reescritas con Sequelize) ---
+
+async function syncDatabase() {
+  console.log("Synchronizing database with Sequelize...");
+  try {
+    // Force: false - no elimina las tablas existentes
+    // Alter: true - modifica las tablas existentes si es necesario
+    await db.sequelize.sync({ force: false, alter: true });
+    console.log("Database synchronized successfully.");
+  } catch (error) {
+    console.error("Error synchronizing database:", error);
+    throw error;
+  }
+}
 
 async function createRoles() {
   console.log("Checking and creating roles using Sequelize...");
@@ -120,6 +126,7 @@ async function createUsers() {
 exports.initialSetup = async () => {
   try {
     console.log("--- Starting Initial Server Setup ---");
+    await syncDatabase();
     await createRoles();
     await createUsers();
     console.log("--- Initial Setup Complete ---");

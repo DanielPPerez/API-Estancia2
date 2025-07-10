@@ -1,7 +1,6 @@
 // controllers/user.controller.js
-const pool = require('../config/db.config');
+const db = require('../models');
 const bcrypt = require('bcryptjs');
-
 
 exports.createUser = async (req, res) => {
   const { username, email, password, nombre, carrera, cuatrimestre, categoria } = req.body;
@@ -12,14 +11,19 @@ exports.createUser = async (req, res) => {
 
   try {
     const hashedPassword = bcrypt.hashSync(password, 8);
-    const [result] = await pool.query(
-      "INSERT INTO users (username, email, password, nombre, carrera, cuatrimestre, categoria, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
-      [username, email, hashedPassword, nombre, carrera, cuatrimestre, categoria]
-    );
-    res.status(201).send({ id: result.insertId, username, email, message: "User created successfully." });
+    const user = await db.user.create({
+      username,
+      email,
+      password: hashedPassword,
+      nombre,
+      carrera,
+      cuatrimestre,
+      categoria
+    });
+    res.status(201).send({ id: user.id, username, email, message: "User created successfully." });
   } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      let field = error.message.includes("'users.username'") ? 'username' : 'email';
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      let field = error.fields && error.fields.username ? 'username' : 'email';
       return res.status(409).send({ message: `Error: ${field} already exists.` });
     }
     console.error("Error creating user:", error);
@@ -30,9 +34,14 @@ exports.createUser = async (req, res) => {
 // Obtener todos los usuarios 
 exports.getAllUsers = async (req, res) => {
   try {
-    const [users] = await pool.query(
-      "SELECT id, username, email, nombre, carrera, cuatrimestre, categoria, created_at FROM users"
-    );
+    const users = await db.user.findAll({
+      attributes: ['id', 'username', 'email', 'nombre', 'carrera', 'cuatrimestre', 'categoria', 'createdAt'],
+      include: [{
+        model: db.role,
+        through: db.user_roles,
+        attributes: ['name']
+      }]
+    });
     res.status(200).send(users);
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -44,23 +53,20 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
   const { id } = req.params;
   try {
-    const [users] = await pool.query(
-      "SELECT id, username, email, nombre, carrera, cuatrimestre, categoria, created_at FROM users WHERE id = ?",
-      [id]
-    );
-    if (users.length === 0) {
+    const user = await db.user.findByPk(id, {
+      attributes: ['id', 'username', 'email', 'nombre', 'carrera', 'cuatrimestre', 'categoria', 'createdAt'],
+      include: [{
+        model: db.role,
+        through: db.user_roles,
+        attributes: ['id', 'name']
+      }]
+    });
+    
+    if (!user) {
       return res.status(404).send({ message: `User with id ${id} not found.` });
     }
-    // También podrías querer obtener los roles del usuario aquí
-    const [roles] = await pool.query(
-        `SELECT r.id, r.name 
-         FROM roles r
-         JOIN user_roles ur ON r.id = ur.role_id
-         WHERE ur.user_id = ?`,
-        [id]
-    );
-    users[0].roles = roles;
-    res.status(200).send(users[0]);
+    
+    res.status(200).send(user);
   } catch (error) {
     console.error(`Error fetching user with id ${id}:`, error);
     res.status(500).send({ message: error.message || "Error retrieving User with id " + id });
@@ -72,35 +78,30 @@ exports.updateUser = async (req, res) => {
   const { id } = req.params;
   const { username, email, nombre, carrera, cuatrimestre, categoria, password } = req.body;
 
- 
-  let query = "UPDATE users SET ";
-  const params = [];
-  const fieldsToUpdate = [];
-
-  if (username) { fieldsToUpdate.push("username = ?"); params.push(username); }
-  if (email) { fieldsToUpdate.push("email = ?"); params.push(email); }
-  if (nombre) { fieldsToUpdate.push("nombre = ?"); params.push(nombre); }
-  if (carrera) { fieldsToUpdate.push("carrera = ?"); params.push(carrera); }
-  if (cuatrimestre) { fieldsToUpdate.push("cuatrimestre = ?"); params.push(cuatrimestre); }
-  if (categoria) { fieldsToUpdate.push("categoria = ?"); params.push(categoria); }
-  if (password) { fieldsToUpdate.push("password = ?"); params.push(bcrypt.hashSync(password, 8));}
-  
-  if (fieldsToUpdate.length === 0) {
-    return res.status(400).send({ message: "No fields to update provided." });
-  }
-
-  query += fieldsToUpdate.join(", ") + ", updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-  params.push(id);
-
   try {
-    const [result] = await pool.query(query, params);
-    if (result.affectedRows === 0) {
-      return res.status(404).send({ message: `User with id ${id} not found or no changes made.` });
+    const user = await db.user.findByPk(id);
+    if (!user) {
+      return res.status(404).send({ message: `User with id ${id} not found.` });
     }
+
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (nombre) updateData.nombre = nombre;
+    if (carrera) updateData.carrera = carrera;
+    if (cuatrimestre) updateData.cuatrimestre = cuatrimestre;
+    if (categoria) updateData.categoria = categoria;
+    if (password) updateData.password = bcrypt.hashSync(password, 8);
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).send({ message: "No fields to update provided." });
+    }
+
+    await user.update(updateData);
     res.status(200).send({ message: "User updated successfully." });
   } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      let field = error.message.includes("'users.username'") ? 'username' : 'email';
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      let field = error.fields && error.fields.username ? 'username' : 'email';
       return res.status(409).send({ message: `Error: ${field} already exists.` });
     }
     console.error(`Error updating user with id ${id}:`, error);
@@ -113,10 +114,12 @@ exports.deleteUserById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [result] = await pool.query("DELETE FROM users WHERE id = ?", [id]);
-    if (result.affectedRows === 0) {
+    const user = await db.user.findByPk(id);
+    if (!user) {
       return res.status(404).send({ message: `User with id ${id} not found.` });
     }
+    
+    await user.destroy();
     res.status(200).send({ message: "User deleted successfully." });
   } catch (error) {
     console.error(`Error deleting user with id ${id}:`, error);
@@ -135,23 +138,25 @@ exports.userBoard = (req, res) => {
 exports.adminBoard = async (req, res) => {
   try {
     // Obtener todos los usuarios
-    const [allUsers] = await pool.query(
-        "SELECT id, username, email, nombre, carrera, cuatrimestre, categoria FROM users"
-    );
+    const allUsers = await db.user.findAll({
+      attributes: ['id', 'username', 'email', 'nombre', 'carrera', 'cuatrimestre', 'categoria'],
+      include: [{
+        model: db.role,
+        through: db.user_roles,
+        attributes: ['name']
+      }]
+    });
 
-    // Obtener el id del rol 'evaluador'
-    const [roleRows] = await pool.query("SELECT id FROM roles WHERE name = 'evaluador'");
-    const roleIdForEvaluator = roleRows.length > 0 ? roleRows[0].id : null;
-
-    let evaluadores = [];
-    if (roleIdForEvaluator) {
-      [evaluadores] = await pool.query(
-        `SELECT u.id, u.username, u.email, u.nombre, u.carrera, u.cuatrimestre, u.categoria
-         FROM users u
-         JOIN user_roles ur ON u.id = ur.user_id
-         WHERE ur.role_id = ?`, [roleIdForEvaluator]
-      );
-    }
+    // Obtener evaluadores
+    const evaluadores = await db.user.findAll({
+      attributes: ['id', 'username', 'email', 'nombre', 'carrera', 'cuatrimestre', 'categoria'],
+      include: [{
+        model: db.role,
+        through: db.user_roles,
+        where: { name: 'evaluador' },
+        attributes: ['name']
+      }]
+    });
 
     res.status(200).send({ usuarios: allUsers, evaluadores: evaluadores });
   } catch (err) {

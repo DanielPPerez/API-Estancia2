@@ -1,5 +1,5 @@
 // controllers/role.controller.js
-const pool = require('../config/db.config'); 
+const db = require('../models'); 
 
 // Crear un nuevo rol
 exports.createRole = async (req, res) => {
@@ -9,13 +9,12 @@ exports.createRole = async (req, res) => {
   }
 
   try {
-    const [result] = await pool.query(
-      "INSERT INTO roles (name, createdAt, updatedAt) VALUES (?, NOW(), NOW())",
-      [name.toLowerCase()] 
-    );
-    res.status(201).send({ id: result.insertId, name });
+    const role = await db.role.create({
+      name: name.toLowerCase()
+    });
+    res.status(201).send({ id: role.id, name: role.name });
   } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).send({ message: "Error: Role name already exists." });
     }
     console.error("Error creating role:", error);
@@ -26,7 +25,9 @@ exports.createRole = async (req, res) => {
 // Obtener todos los roles
 exports.getAllRoles = async (req, res) => {
   try {
-    const [roles] = await pool.query("SELECT id, name, created_at, updated_at FROM roles");
+    const roles = await db.role.findAll({
+      attributes: ['id', 'name', 'createdAt', 'updatedAt']
+    });
     res.status(200).send(roles);
   } catch (error) {
     console.error("Error fetching roles:", error);
@@ -38,11 +39,15 @@ exports.getAllRoles = async (req, res) => {
 exports.getRoleById = async (req, res) => {
   const { id } = req.params;
   try {
-    const [roles] = await pool.query("SELECT id, name, created_at, updated_at FROM roles WHERE id = ?", [id]);
-    if (roles.length === 0) {
+    const role = await db.role.findByPk(id, {
+      attributes: ['id', 'name', 'createdAt', 'updatedAt']
+    });
+    
+    if (!role) {
       return res.status(404).send({ message: `Role with id ${id} not found.` });
     }
-    res.status(200).send(roles[0]);
+    
+    res.status(200).send(role);
   } catch (error) {
     console.error(`Error fetching role with id ${id}:`, error);
     res.status(500).send({ message: error.message || "Error retrieving Role with id " + id });
@@ -59,16 +64,15 @@ exports.updateRole = async (req, res) => {
   }
 
   try {
-    const [result] = await pool.query(
-      "UPDATE roles SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      [name.toLowerCase(), id]
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).send({ message: `Role with id ${id} not found or no changes made.` });
+    const role = await db.role.findByPk(id);
+    if (!role) {
+      return res.status(404).send({ message: `Role with id ${id} not found.` });
     }
+
+    await role.update({ name: name.toLowerCase() });
     res.status(200).send({ message: "Role updated successfully." });
   } catch (error) {
-     if (error.code === 'ER_DUP_ENTRY') {
+    if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).send({ message: "Error: Role name already exists." });
     }
     console.error(`Error updating role with id ${id}:`, error);
@@ -79,26 +83,18 @@ exports.updateRole = async (req, res) => {
 // Eliminar un rol por ID
 exports.deleteRole = async (req, res) => {
   const { id } = req.params;
-  let connection;
+
   try {
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-
-    const [result] = await connection.query("DELETE FROM roles WHERE id = ?", [id]);
-    
-    await connection.commit();
-
-    if (result.affectedRows === 0) {
+    const role = await db.role.findByPk(id);
+    if (!role) {
       return res.status(404).send({ message: `Role with id ${id} not found.` });
     }
+
+    await role.destroy();
     res.status(200).send({ message: "Role deleted successfully." });
   } catch (error) {
-    if (connection) await connection.rollback();
     console.error(`Error deleting role with id ${id}:`, error);
     res.status(500).send({ message: error.message || "Could not delete Role with id " + id });
-  } finally {
-    if (connection) connection.release();
   }
 };
 
@@ -113,31 +109,17 @@ exports.assignRoleToUser = async (req, res) => {
 
   try {
     // Verificar si el usuario y el rol existen 
-    const [user] = await pool.query("SELECT id FROM users WHERE id = ?", [userId]);
-    if (user.length === 0) return res.status(404).send({ message: `User with id ${userId} not found.`});
+    const user = await db.user.findByPk(userId);
+    if (!user) return res.status(404).send({ message: `User with id ${userId} not found.`});
     
-    const [role] = await pool.query("SELECT id FROM roles WHERE id = ?", [roleId]);
-    if (role.length === 0) return res.status(404).send({ message: `Role with id ${roleId} not found.`});
+    const role = await db.role.findByPk(roleId);
+    if (!role) return res.status(404).send({ message: `Role with id ${roleId} not found.`});
 
-    await pool.query(
-      "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
-      [userId, roleId]
-    );
+    await user.addRole(role);
     res.status(201).send({ message: "Role assigned to user successfully." });
   } catch (error) {
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).send({ message: "User already has this role." });
-    }
-    if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-        let msg = "Error assigning role: ";
-        if (error.message.includes("CONSTRAINT `user_roles_ibfk_1`")) {
-            msg += `User with id ${userId} not found.`;
-        } else if (error.message.includes("CONSTRAINT `user_roles_ibfk_2`")) {
-            msg += `Role with id ${roleId} not found.`;
-        } else {
-            msg += error.message;
-        }
-        return res.status(404).send({ message: msg });
     }
     console.error("Error assigning role to user:", error);
     res.status(500).send({ message: error.message || "Error assigning role." });
@@ -150,14 +132,19 @@ exports.removeRoleFromUser = async (req, res) => {
   if (!userId || !roleId) {
     return res.status(400).send({ message: "User ID and Role ID are required." });
   }
+  
   try {
-    const [result] = await pool.query(
-      "DELETE FROM user_roles WHERE user_id = ? AND role_id = ?",
-      [userId, roleId]
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).send({ message: "Role assignment not found or user/role does not exist." });
+    const user = await db.user.findByPk(userId);
+    if (!user) {
+      return res.status(404).send({ message: `User with id ${userId} not found.` });
     }
+
+    const role = await db.role.findByPk(roleId);
+    if (!role) {
+      return res.status(404).send({ message: `Role with id ${roleId} not found.` });
+    }
+
+    await user.removeRole(role);
     res.status(200).send({ message: "Role removed from user successfully." });
   } catch (error) {
     console.error("Error removing role from user:", error);
@@ -172,37 +159,37 @@ exports.getUserRoles = async (req, res) => {
   
   try {
     // Verificar que el usuario existe
-    const [userExists] = await pool.query("SELECT id FROM users WHERE id = ?", [userId]);
-    if (userExists.length === 0) {
+    const user = await db.user.findByPk(userId);
+    if (!user) {
       return res.status(404).send({ message: `User with id ${userId} not found.` });
     }
 
     // Verificar permisos: solo puede ver sus propios roles o ser admin
     if (parseInt(userId) !== parseInt(requestingUserId)) {
       // Si no es el mismo usuario, verificar si es admin
-      const [adminRoles] = await pool.query(
-        `SELECT r.name 
-         FROM roles r
-         JOIN user_roles ur ON r.id = ur.role_id
-         WHERE ur.user_id = ? AND r.name = 'admin'`,
-        [requestingUserId]
-      );
+      const requestingUser = await db.user.findByPk(requestingUserId, {
+        include: [{
+          model: db.role,
+          through: db.user_roles,
+          where: { name: 'admin' }
+        }]
+      });
       
-      if (adminRoles.length === 0) {
+      if (!requestingUser || requestingUser.roles.length === 0) {
         return res.status(403).send({ message: "You can only view your own roles." });
       }
     }
 
     // Obtener los roles del usuario
-    const [roles] = await pool.query(
-      `SELECT r.id, r.name 
-       FROM roles r
-       JOIN user_roles ur ON r.id = ur.role_id
-       WHERE ur.user_id = ?`,
-      [userId]
-    );
+    const userWithRoles = await db.user.findByPk(userId, {
+      include: [{
+        model: db.role,
+        through: db.user_roles,
+        attributes: ['id', 'name']
+      }]
+    });
     
-    res.status(200).send(roles);
+    res.status(200).send(userWithRoles.roles);
   } catch (error) {
     console.error(`Error fetching roles for user ${userId}:`, error);
     res.status(500).send({ message: error.message || "Error fetching user roles." });

@@ -9,7 +9,9 @@ if (process.env.DATABASE_URL) {
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     protocol: 'postgres',
-    dialectOptions: dbConfig.dialectOptions // Usamos las opciones de SSL que definimos antes
+    dialectOptions: dbConfig.dialectOptions, // Usamos las opciones de SSL que definimos antes
+    define: dbConfig.define, // Usar configuración específica de PostgreSQL
+    pool: dbConfig.pool
   });
 } else {
   // Si estamos en desarrollo (en tu PC), usamos la configuración manual del db.config.js.
@@ -20,12 +22,9 @@ if (process.env.DATABASE_URL) {
     {
       host: dbConfig.HOST,
       dialect: dbConfig.dialect,
-      pool: {
-        max: dbConfig.pool.max,
-        min: dbConfig.pool.min,
-        acquire: dbConfig.pool.acquire,
-        idle: dbConfig.pool.idle
-      }
+      pool: dbConfig.pool,
+      define: dbConfig.define, // Usar configuración específica de PostgreSQL
+      dialectOptions: process.env.NODE_ENV === 'production' ? dbConfig.dialectOptions : {}
     }
   );
 }
@@ -66,6 +65,16 @@ db.user.associate = (models) => {
     foreignKey: "idUser",
     as: "proyectos",
   });
+  // Asociar User con Calificaciones (como evaluador)
+  db.user.hasMany(models.calificaciones, {
+    foreignKey: "userEvaluadorId",
+    as: "calificacionesComoEvaluador"
+  });
+  // Asociar User con Calificaciones (como alumno)
+  db.user.hasMany(models.calificaciones, {
+    foreignKey: "userAlumnoId",
+    as: "calificacionesComoAlumno"
+  });
 };
 
 db.refreshToken.associate = (models) => {
@@ -81,12 +90,39 @@ db.proyecto.associate = (models) => {
     foreignKey: "idUser",
     as: "user",
   });
+  // Asociar Proyecto con Calificaciones
+  db.proyecto.hasMany(models.calificaciones, {
+    foreignKey: "proyectoId",
+    as: "calificaciones"
+  });
+};
+
+// Asociar Calificaciones
+db.calificaciones.associate = (models) => {
+  // Asociación con el proyecto
+  db.calificaciones.belongsTo(models.proyecto, {
+    foreignKey: 'proyectoId',
+    as: 'proyecto'
+  });
+
+  // Asociación con el evaluador (usuario)
+  db.calificaciones.belongsTo(models.user, {
+    foreignKey: 'userEvaluadorId',
+    as: 'evaluador'
+  });
+
+  // Asociación con el alumno (usuario)
+  db.calificaciones.belongsTo(models.user, {
+    foreignKey: 'userAlumnoId',
+    as: 'alumno'
+  });
 };
 
 db.user.associate(db);
 db.role.associate(db);
 db.refreshToken.associate(db);
 db.proyecto.associate(db);
+db.calificaciones.associate(db);
 
 db.ROLES = ["user", "admin", "moderator"];
 

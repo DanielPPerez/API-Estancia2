@@ -1,5 +1,5 @@
 // app/config/db.config.js
-// Este es el único archivo de configuración de base de datos que necesitas al usar Sequelize.
+// Configuración específica para PostgreSQL
 require('dotenv').config();
 
 module.exports = {
@@ -28,5 +28,15 @@ module.exports = {
       // Esta línea es necesaria para evitar errores de certificados autofirmados en Render.
       rejectUnauthorized: false 
     }
+  },
+
+  // Configuración adicional para PostgreSQL
+  define: {
+    // Usar snake_case para nombres de columnas en PostgreSQL
+    underscored: true,
+    // No agregar 's' al final de los nombres de tabla
+    freezeTableName: true,
+    // Usar timestamps automáticamente
+    timestamps: true
   }
 };

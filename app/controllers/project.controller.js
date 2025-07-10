@@ -54,7 +54,7 @@ exports.getAllProjects = async (req, res) => {
   try {
     const projects = await Proyecto.findAll({
       include: [{
-        model: User,
+        model: db.users,
         as: 'user',
         attributes: ['username', 'nombre', 'categoria']
       }],
@@ -73,7 +73,7 @@ exports.getProjectById = async (req, res) => {
   try {
     const project = await Proyecto.findByPk(id, {
       include: [{
-        model: User,
+        model: db.users,
         as: 'user',
         attributes: ['username', 'nombre', 'email']
       }]
@@ -94,10 +94,10 @@ exports.getProjectById = async (req, res) => {
 exports.getProjectsByUserId = async (req, res) => {
   const { userId } = req.params;
   try {
-    const user = await User.findByPk(userId, {
+    const user = await db.users.findByPk(userId, {
       attributes: ['id', 'username', 'categoria', 'carrera'],
       include: [{
-        model: Proyecto,
+        model: db.proyectos,
         as: 'proyectos',
         attributes: ['id', 'name', 'description', 'videoLink', 'createdAt'],
         order: [['createdAt', 'DESC']]
@@ -130,10 +130,10 @@ exports.updateProject = async (req, res) => {
     // Autorización: solo el dueño o un admin puede editar
     if (project.idUser !== userId) {
       // Verificar si el usuario es admin
-      const user = await User.findByPk(userId, {
+      const user = await db.users.findByPk(userId, {
         include: [{
-          model: Role,
-          through: UserRoles,
+          model: db.roles,
+          through: db.user_roles,
           where: { name: 'admin' }
         }]
       });
@@ -195,10 +195,10 @@ exports.deleteProject = async (req, res) => {
 
     // Autorización: solo el dueño o un admin puede eliminar
     if (project.idUser !== userId) {
-      const user = await User.findByPk(userId, {
+      const user = await db.users.findByPk(userId, {
         include: [{
-          model: Role,
-          through: UserRoles,
+          model: db.roles,
+          through: db.user_roles,
           where: { name: 'admin' }
         }]
       });

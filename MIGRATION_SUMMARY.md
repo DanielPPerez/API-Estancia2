@@ -181,15 +181,20 @@ updateUser(updatedUserData)
 - Error: `Cannot read properties of undefined (reading 'findAll')`
 - El modelo `db.projects` no estaba disponible
 - El controlador intentaba acceder a un modelo inexistente
+- Error: `Include unexpected. Element has to be either a Model, an Association or an object.`
 
 ### Solución:
 - ✅ **Corregido `app/models/index.js`**: Agregado alias `db.projects = db.proyectos`
 - ✅ **Actualizado `project.controller.js`**: Usa `db.proyectos` directamente
-- ✅ **Verificación**: El modelo ahora se carga correctamente como `db.proyectos`
+- ✅ **Corregido `proyecto.model.js`**: Asociación con `models.users` en lugar de `models.user`
+- ✅ **Actualizado controlador**: Todas las referencias ahora usan `db.users`, `db.roles`, etc.
+- ✅ **Verificación**: El modelo ahora se carga correctamente y las asociaciones funcionan
 
 ### Archivos Modificados:
 - `app/models/index.js`: Agregado alias para compatibilidad
+- `app/models/proyecto.model.js`: Corregida asociación con modelo users
 - `app/controllers/project.controller.js`: Corregidas referencias de modelos
 - `test-fix.js`: Script de verificación de la corrección
+- `test-associations.js`: Script para probar asociaciones
 
 El sistema ahora está completamente migrado y debería funcionar sin errores. 

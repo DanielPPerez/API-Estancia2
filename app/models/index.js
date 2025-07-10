@@ -70,9 +70,14 @@ if (db.users && !db.user) {
   console.log("🔄 Alias creado: db.user = db.users");
 }
 
-if (db.projects && !db.proyecto) {
-  db.proyecto = db.projects;
-  console.log("🔄 Alias creado: db.proyecto = db.projects");
+if (db.proyectos && !db.proyecto) {
+  db.proyecto = db.proyectos;
+  console.log("🔄 Alias creado: db.proyecto = db.proyectos");
+}
+
+if (db.proyectos && !db.projects) {
+  db.projects = db.proyectos;
+  console.log("🔄 Alias creado: db.projects = db.proyectos");
 }
 
 if (db.refreshToken && !db.refreshTokens) {

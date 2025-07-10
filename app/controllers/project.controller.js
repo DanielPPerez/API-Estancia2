@@ -3,9 +3,9 @@ const fs = require("fs");
 const path = require("path");
 
 // Obtener referencias a los modelos con nombres correctos
-const Proyecto = db.projects || db.proyecto;
-const User = db.users || db.user;
-const Role = db.roles || db.role;
+const Proyecto = db.proyectos;
+const User = db.users;
+const Role = db.roles;
 const UserRoles = db.user_roles;
 
 // Crear un nuevo proyecto 

@@ -1,5 +1,5 @@
 // controllers/role.controller.js
-const pool = require('../config/db.pool'); 
+const pool = require('../config/db.config'); 
 
 // Crear un nuevo rol
 exports.createRole = async (req, res) => {

@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require('uuid'); 
 const ms = require('ms'); 
 
-const pool = require("../config/db.pool");
+const pool = require("../config/db.config");
 const config = require("../config/auth.config"); 
 
 // Función para convertir la duración del refresh token a una fecha de expiración

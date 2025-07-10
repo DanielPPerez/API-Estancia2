@@ -1,5 +1,5 @@
 // controllers/user.controller.js
-const pool = require('../config/db.pool');
+const pool = require('../config/db.config');
 const bcrypt = require('bcryptjs');
 
 

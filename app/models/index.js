@@ -45,10 +45,14 @@ fs.readdirSync(__dirname)
     db[model.name] = model;
   });
 
-// Establecer asociaciones
+// Establecer asociaciones de manera segura
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
-    db[modelName].associate(db);
+    try {
+      db[modelName].associate(db);
+    } catch (error) {
+      console.error(`Error setting associations for ${modelName}:`, error);
+    }
   }
 });
 

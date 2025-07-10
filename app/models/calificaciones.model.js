@@ -44,23 +44,28 @@ module.exports = (sequelize, Sequelize) => {
   });
 
   Calificaciones.associate = (models) => {
-    // Asociación con el proyecto
-    Calificaciones.belongsTo(models.proyecto, {
-      foreignKey: 'proyectoId',
-      as: 'proyecto'
-    });
+    // Verificar que los modelos existan antes de establecer asociaciones
+    if (models.proyecto) {
+      // Asociación con el proyecto
+      Calificaciones.belongsTo(models.proyecto, {
+        foreignKey: 'proyectoId',
+        as: 'proyecto'
+      });
+    }
 
-    // Asociación con el evaluador (usuario)
-    Calificaciones.belongsTo(models.user, {
-      foreignKey: 'userEvaluadorId',
-      as: 'evaluador'
-    });
+    if (models.user) {
+      // Asociación con el evaluador (usuario)
+      Calificaciones.belongsTo(models.user, {
+        foreignKey: 'userEvaluadorId',
+        as: 'evaluador'
+      });
 
-    // Asociación con el alumno (usuario)
-    Calificaciones.belongsTo(models.user, {
-      foreignKey: 'userAlumnoId',
-      as: 'alumno'
-    });
+      // Asociación con el alumno (usuario)
+      Calificaciones.belongsTo(models.user, {
+        foreignKey: 'userAlumnoId',
+        as: 'alumno'
+      });
+    }
   };
 
   return Calificaciones;

@@ -38,11 +38,23 @@ module.exports = (sequelize, Sequelize) => {
   });
 
   Proyecto.associate = (models) => {
-    // Asociación muchos a uno con User
-    Proyecto.belongsTo(models.user, {
-      foreignKey: "idUser",
-      as: "user",
-    });
+    // Verificar que el modelo user exista antes de establecer asociaciones
+    if (models.user) {
+      // Asociación muchos a uno con User
+      Proyecto.belongsTo(models.user, {
+        foreignKey: "idUser",
+        as: "user",
+      });
+    }
+
+    // Verificar que el modelo calificaciones exista antes de establecer asociaciones
+    if (models.calificaciones) {
+      // Asociación uno a muchos con Calificaciones
+      Proyecto.hasMany(models.calificaciones, {
+        foreignKey: "proyectoId",
+        as: "calificaciones"
+      });
+    }
   };
 
   return Proyecto;

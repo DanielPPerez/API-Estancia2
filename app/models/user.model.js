@@ -39,17 +39,36 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   User.associate = (models) => {
-    User.belongsToMany(models.role, {
-      through: models.user_roles,
-      foreignKey: "userId",
-      otherKey: "roleId",
-    });
+    // Verificar que los modelos existan antes de establecer asociaciones
+    if (models.role && models.user_roles) {
+      User.belongsToMany(models.role, {
+        through: models.user_roles,
+        foreignKey: "userId",
+        otherKey: "roleId",
+      });
+    }
 
-    // Asociación uno a muchos con Proyecto
-    User.hasMany(models.proyecto, {
-      foreignKey: "idUser",
-      as: "proyectos",
-    });
+    if (models.proyecto) {
+      // Asociación uno a muchos con Proyecto
+      User.hasMany(models.proyecto, {
+        foreignKey: "idUser",
+        as: "proyectos",
+      });
+    }
+
+    if (models.calificaciones) {
+      // Asociación con Calificaciones (como evaluador)
+      User.hasMany(models.calificaciones, {
+        foreignKey: "userEvaluadorId",
+        as: "calificacionesComoEvaluador"
+      });
+
+      // Asociación con Calificaciones (como alumno)
+      User.hasMany(models.calificaciones, {
+        foreignKey: "userAlumnoId",
+        as: "calificacionesComoAlumno"
+      });
+    }
   };
 
   return User;

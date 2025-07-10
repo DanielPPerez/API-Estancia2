@@ -1,5 +1,5 @@
 // controllers/user.controller.js
-const pool = require('../config/db.config');
+const pool = require('../config/db.pool');
 const bcrypt = require('bcryptjs');
 
 // Crear un nuevo usuario (función básica, signup sería más compleja con roles)

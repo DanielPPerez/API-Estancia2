@@ -1,5 +1,5 @@
 // controllers/calificaciones.controller.js
-const pool = require('../config/db.config');
+const pool = require('../config/db.pool');
 
 // Crear una nueva calificación para un proyecto
 exports.createCalificacion = async (req, res) => {

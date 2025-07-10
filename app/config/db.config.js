@@ -1,30 +1,28 @@
-// --- DESPUÉS (La versión correcta para Railway y desarrollo local) ---
-const mysql = require('mysql2/promise');
-require('dotenv').config(); // Esto carga las variables de tu archivo .env localmente
+// Contenido EXACTO para el archivo: app/config/db.config.js
 
-const pool = mysql.createPool({
-   host: process.env.MYSQLHOST || process.env.DB_HOST || '127.0.0.1',
-   user: process.env.MYSQLUSER || process.env.DB_USER,
-   password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
-   database: process.env.MYSQLDATABASE || process.env.DB_NAME,
-   port: process.env.MYSQLPORT || process.env.DB_PORT,
-  // Estos settings están bien como están
-  waitForConnections: true,
-  connectionLimit: parseInt(process.env.DB_POOL_MAX || '10'), 
-  queueLimit: 0, 
-  connectTimeout: parseInt(process.env.DB_POOL_ACQUIRE || '10000') 
-});
+require('dotenv').config(); // Carga las variables del .env para desarrollo local
 
-// Probar la conexión 
-pool.getConnection()
-  .then(connection => {
-    // Usamos process.env.RAILWAY_ENVIRONMENT para saber dónde estamos corriendo
-    const environment = process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Local';
-    console.log(`MySQL Connected successfully in ${environment} environment!`);
-    connection.release(); 
-  })
-  .catch(err => {
-    console.error('Failed to connect to MySQL:', err);
-  });
+module.exports = {
+  // En Railway, usa MYSQLHOST. En local, usa DB_HOST.
+  HOST: process.env.MYSQLHOST || process.env.DB_HOST,
 
-module.exports = pool;
+  // En Railway, usa MYSQLUSER. En local, usa DB_USER.
+  USER: process.env.MYSQLUSER || process.env.DB_USER,
+
+  // En Railway, usa MYSQLPASSWORD. En local, usa DB_PASSWORD.
+  PASSWORD: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
+
+  // En Railway, usa MYSQLDATABASE. En local, usa DB_NAME.
+  DB: process.env.MYSQLDATABASE || process.env.DB_NAME,
+
+  // En Railway, usa MYSQLPORT. En local, usa DB_PORT.
+  PORT: process.env.MYSQLPORT || process.env.DB_PORT,
+
+  dialect: "mysql",
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  }
+};

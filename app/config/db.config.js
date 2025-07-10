@@ -1,12 +1,16 @@
+// --- DESPUÉS (La versión correcta para Railway y desarrollo local) ---
 const mysql = require('mysql2/promise');
-require('dotenv').config(); 
+require('dotenv').config(); // Esto carga las variables de tu archivo .env localmente
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: parseInt(process.env.DB_PORT || '3307'),
+  // Intenta usar la variable de Railway, si no existe, usa la del archivo .env
+  host: process.env.MYSQLHOST || process.env.DB_HOST,
+  user: process.env.MYSQLUSER || process.env.DB_USER,
+  password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD,
+  database: process.env.MYSQLDATABASE || process.env.DB_NAME,
+  port: parseInt(process.env.MYSQLPORT || process.env.DB_PORT), // Railway usa 3306
+  
+  // Estos settings están bien como están
   waitForConnections: true,
   connectionLimit: parseInt(process.env.DB_POOL_MAX || '10'), 
   queueLimit: 0, 
@@ -16,7 +20,9 @@ const pool = mysql.createPool({
 // Probar la conexión 
 pool.getConnection()
   .then(connection => {
-    console.log('MySQL Connected successfully using mysql2 pool!');
+    // Usamos process.env.RAILWAY_ENVIRONMENT para saber dónde estamos corriendo
+    const environment = process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Local';
+    console.log(`MySQL Connected successfully in ${environment} environment!`);
     connection.release(); 
   })
   .catch(err => {

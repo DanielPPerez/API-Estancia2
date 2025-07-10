@@ -47,11 +47,12 @@ fs.readdirSync(__dirname)
   });
 
 // Establecer asociaciones de manera segura
+console.log("\n🔗 Estableciendo asociaciones...");
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
     try {
       db[modelName].associate(db);
-      console.log(`🔗 Asociaciones establecidas para: ${modelName}`);
+      console.log(`✅ Asociaciones establecidas para: ${modelName}`);
     } catch (error) {
       console.error(`❌ Error setting associations for ${modelName}:`, error);
     }
@@ -79,10 +80,21 @@ if (db.refreshToken && !db.refreshTokens) {
   console.log("🔄 Alias creado: db.refreshTokens = db.refreshToken");
 }
 
+// Verificar que las asociaciones se establecieron correctamente
+console.log("\n🔍 Verificando asociaciones establecidas:");
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associations) {
+    const associations = Object.keys(db[modelName].associations);
+    if (associations.length > 0) {
+      console.log(`✅ ${modelName}: ${associations.join(', ')}`);
+    }
+  }
+});
+
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
-console.log("📋 Modelos disponibles:", Object.keys(db).filter(key => 
+console.log("\n📋 Modelos disponibles:", Object.keys(db).filter(key => 
   key !== 'sequelize' && key !== 'Sequelize'
 ));
 

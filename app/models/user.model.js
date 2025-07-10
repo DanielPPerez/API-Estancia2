@@ -40,8 +40,9 @@ module.exports = (sequelize, DataTypes) => {
 
   User.associate = (models) => {
     // Verificar que los modelos existan antes de establecer asociaciones
-    if (models.role && models.user_roles) {
-      User.belongsToMany(models.role, {
+    // Usar models.roles (plural) ya que ese es el nombre del modelo
+    if (models.roles && models.user_roles) {
+      User.belongsToMany(models.roles, {
         through: models.user_roles,
         foreignKey: "userId",
         otherKey: "roleId",

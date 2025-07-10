@@ -75,7 +75,8 @@ const setupDatabase = async () => {
       });
 
       if (adminRole) {
-        await newAdmin.setRoles([adminRole]);
+        // Usar addRole en lugar de setRoles
+        await newAdmin.addRole(adminRole);
         console.log("✅ Usuario administrador creado con rol 'admin'");
       } else {
         console.error("❌ Error: No se encontró el rol 'admin'");
@@ -110,7 +111,8 @@ const setupDatabase = async () => {
       });
 
       if (evaluadorRole) {
-        await newEvaluador.setRoles([evaluadorRole]);
+        // Usar addRole en lugar de setRoles
+        await newEvaluador.addRole(evaluadorRole);
         console.log("✅ Usuario evaluador creado con rol 'evaluador'");
       } else {
         console.error("❌ Error: No se encontró el rol 'evaluador'");

@@ -58,7 +58,10 @@ exports.signup = async (req, res) => {
         return res.status(400).send({ message: "One or more specified roles do not exist." });
       }
 
-      await user.setRoles(roleObjects);
+      // Usar addRole para cada rol
+      for (const role of roleObjects) {
+        await user.addRole(role);
+      }
     } else {
       // Asignar rol por defecto 'user'
       const defaultRole = await Role.findOne({
@@ -69,7 +72,7 @@ exports.signup = async (req, res) => {
         return res.status(500).send({ message: "Default role 'user' not found. Please configure roles." });
       }
       
-      await user.setRoles([defaultRole]);
+      await user.addRole(defaultRole);
     }
 
     res.send({ message: "User registered successfully!" });

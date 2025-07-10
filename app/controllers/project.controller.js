@@ -24,8 +24,8 @@ exports.createProject = async (req, res) => {
   try {
     const [result] = await pool.query(
       `INSERT INTO projects 
-       (user_id, name, description, video_link, technical_sheet_path, canva_model_path, project_pdf_path, estatus) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (user_id, name, description, video_link, technical_sheet_path, canva_model_path, project_pdf_path, estatus, createdAt, updatedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [userId, nombreProyecto, descripcion, videoPitch, fichaTecnicaPath, modeloCanvaPath, pdfProyectoPath, estatus]
     );
     res.status(201).send({ id: result.insertId, message: "Project created successfully!", estatus });

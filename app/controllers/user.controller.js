@@ -16,7 +16,7 @@ exports.createUser = async (req, res) => {
   try {
     const hashedPassword = bcrypt.hashSync(password, 8);
     const [result] = await pool.query(
-      "INSERT INTO users (username, email, password, nombre, carrera, cuatrimestre, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO users (username, email, password, nombre, carrera, cuatrimestre, categoria, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
       [username, email, hashedPassword, nombre, carrera, cuatrimestre, categoria]
     );
     res.status(201).send({ id: result.insertId, username, email, message: "User created successfully." });

@@ -10,7 +10,7 @@ exports.createRole = async (req, res) => {
 
   try {
     const [result] = await pool.query(
-      "INSERT INTO roles (name) VALUES (?)",
+      "INSERT INTO roles (name, createdAt, updatedAt) VALUES (?, NOW(), NOW())",
       [name.toLowerCase()] 
     );
     res.status(201).send({ id: result.insertId, name });

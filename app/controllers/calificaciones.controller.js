@@ -65,8 +65,8 @@ exports.createCalificacion = async (req, res) => {
     // 3. Insertar la calificación
     const [result] = await connection.query(
       `INSERT INTO calificaciones 
-       (user_evaluador_id, proyecto_id, user_alumno_id, innovacion, mercado, tecnica, financiera, pitch, observaciones, total) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (user_evaluador_id, proyecto_id, user_alumno_id, innovacion, mercado, tecnica, financiera, pitch, observaciones, total, createdAt, updatedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         evaluadorId,
         proyectoId,

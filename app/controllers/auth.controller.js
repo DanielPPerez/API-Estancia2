@@ -30,7 +30,7 @@ exports.signup = async (req, res) => {
 
     // 2. Crear usuario
     const [userResult] = await connection.query(
-      "INSERT INTO users (username, email, password, nombre, carrera, cuatrimestre, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO users (username, email, password, nombre, carrera, cuatrimestre, categoria, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
       [username, email, hashedPassword, nombre, carrera, cuatrimestre, categoria]
     );
     const userId = userResult.insertId;

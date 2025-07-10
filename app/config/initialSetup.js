@@ -82,7 +82,7 @@ async function createUsersAndAssignRoles() {
       if (userRows.length === 0) {
         const hashedPassword = bcrypt.hashSync(userData.password, 8);
         const [result] = await pool.query(
-          "INSERT INTO users (username, email, password, nombre) VALUES (?, ?, ?, ?)",
+          "INSERT INTO users (username, email, password, nombre, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())",
           [userData.username, userData.email, hashedPassword, userData.nombre]
         );
         userId = result.insertId;

@@ -99,12 +99,13 @@ async function createUsersAndAssignRoles() {
             [userId, roleId]
           );
           if (userRoleRows.length === 0) {
+            // Añadimos las columnas createdAt y updatedAt con el valor NOW() de MySQL
             await pool.query(
-              "INSERT INTO user_roles (userId, roleId) VALUES (?, ?)",
+              "INSERT INTO user_roles (userId, roleId, createdAt, updatedAt) VALUES (?, ?, NOW(), NOW())",
               [userId, roleId]
             );
             console.log(`    - Role '${roleName}' assigned to user '${userData.email}'.`);
-          }
+        }
         }
       }
     }

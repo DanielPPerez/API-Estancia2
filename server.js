@@ -1,14 +1,19 @@
+// Contenido MODIFICADO para server.js
+
 const express = require("express");
 const cors = require("cors");
-require('dotenv').config(); // Cargar variables de entorno desde .env
+require('dotenv').config();
 
-// 1. IMPORTAMOS la función de configuración inicial
+// 1. IMPORTAMOS EL OBJETO `db` DE SEQUELIZE
+// Este objeto contiene la instancia de sequelize y todos los modelos
+const db = require("./app/models");
+
+// 2. IMPORTAMOS la función de configuración inicial
 const { initialSetup } = require('./app/config/initialSetup.js');
 
 const app = express();
 
 // --- Configuración de CORS ---
-// (Tu configuración actual es buena, la mantenemos)
 const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : ["http://localhost:8081", "http://localhost:5173"];
 const corsOptions = {
   origin: function (origin, callback) {
@@ -26,23 +31,23 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- Conexión a la Base de Datos ---
-// El pool se importa en los archivos que lo necesitan, como en initialSetup.js.
-// No necesitamos hacer nada con él aquí.
-const pool = require('./app/config/db.config.js');
-  
 // --- Cargar Rutas ---
 require('./app/routes/index.routes.js')(app);
 
 // --- Puerto y Arranque del Servidor ---
 const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}.`);
-  console.log(`Access the API at http://localhost:${PORT}`); 
+  console.log(`Access the API at http://localhost:${PORT}`);
   
-  // 2. LLAMAMOS A LA FUNCIÓN DE INICIALIZACIÓN AQUÍ
-  // Usamos async/await en la función de callback de listen para asegurar
-  // que el setup se complete antes de que consideremos el servidor "listo".
-  await initialSetup();
+  // 3. SINCRONIZAMOS LA BASE DE DATOS Y LUEGO INICIAMOS EL SETUP
+  // db.sequelize.sync() creará todas las tablas si no existen.
+  // El .then() asegura que initialSetup() solo se ejecute DESPUÉS de que las tablas estén listas.
+  db.sequelize.sync().then(() => {
+    console.log('Database tables synchronized successfully.');
+    initialSetup(); // Llamamos a la función de inicialización aquí
+  }).catch(err => {
+    console.error("Failed to sync database tables: ", err);
+  });
 });

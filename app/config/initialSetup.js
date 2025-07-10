@@ -6,6 +6,24 @@ const setupDatabase = async () => {
   try {
     console.log("🔄 Iniciando configuración de la base de datos...");
 
+    // Verificar que los modelos necesarios estén disponibles
+    // El modelo role se carga como 'roles' (plural)
+    const Role = db.roles || db.role;
+    const User = db.users || db.user;
+    const UserRoles = db.user_roles;
+
+    if (!Role) {
+      throw new Error("Modelo 'role/roles' no está disponible");
+    }
+    if (!User) {
+      throw new Error("Modelo 'user/users' no está disponible");
+    }
+    if (!UserRoles) {
+      throw new Error("Modelo 'user_roles' no está disponible");
+    }
+
+    console.log("✅ Modelos verificados");
+
     // 1. Sincronizar todos los modelos
     await db.sequelize.sync({ force: false });
     console.log("✅ Modelos sincronizados");
@@ -19,15 +37,20 @@ const setupDatabase = async () => {
     ];
 
     for (const roleData of roles) {
-      await db.role.findOrCreate({
-        where: { name: roleData.name },
-        defaults: roleData
-      });
+      try {
+        await Role.findOrCreate({
+          where: { name: roleData.name },
+          defaults: roleData
+        });
+        console.log(`✅ Rol '${roleData.name}' creado/verificado`);
+      } catch (error) {
+        console.error(`❌ Error al crear rol '${roleData.name}':`, error);
+      }
     }
     console.log("✅ Roles creados/verificados");
 
     // 3. Crear usuario administrador por defecto si no existe
-    const adminUser = await db.user.findOne({
+    const adminUser = await User.findOne({
       where: { username: 'admin' }
     });
 
@@ -36,7 +59,7 @@ const setupDatabase = async () => {
       
       const hashedPassword = bcrypt.hashSync('admin123', 8);
       
-      const newAdmin = await db.user.create({
+      const newAdmin = await User.create({
         username: 'admin',
         email: 'admin@upchiapas.edu.mx',
         password: hashedPassword,
@@ -47,7 +70,7 @@ const setupDatabase = async () => {
       });
 
       // Asignar rol de administrador
-      const adminRole = await db.role.findOne({
+      const adminRole = await Role.findOne({
         where: { name: 'admin' }
       });
 
@@ -62,7 +85,7 @@ const setupDatabase = async () => {
     }
 
     // 4. Crear usuario evaluador por defecto si no existe
-    const evaluadorUser = await db.user.findOne({
+    const evaluadorUser = await User.findOne({
       where: { username: 'evaluador' }
     });
 
@@ -71,7 +94,7 @@ const setupDatabase = async () => {
       
       const hashedPassword = bcrypt.hashSync('evaluador123', 8);
       
-      const newEvaluador = await db.user.create({
+      const newEvaluador = await User.create({
         username: 'evaluador',
         email: 'evaluador@upchiapas.edu.mx',
         password: hashedPassword,
@@ -82,7 +105,7 @@ const setupDatabase = async () => {
       });
 
       // Asignar rol de evaluador
-      const evaluadorRole = await db.role.findOne({
+      const evaluadorRole = await Role.findOne({
         where: { name: 'evaluador' }
       });
 
@@ -99,10 +122,10 @@ const setupDatabase = async () => {
     console.log("🎉 Configuración de base de datos completada exitosamente");
     
     // Mostrar información de usuarios creados
-    const allUsers = await db.user.findAll({
+    const allUsers = await User.findAll({
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         attributes: ['name']
       }]
     });

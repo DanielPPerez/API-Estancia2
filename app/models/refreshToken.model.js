@@ -46,5 +46,15 @@ module.exports = (sequelize, Sequelize) => {
     return token.expiryDate.getTime() < new Date().getTime();
   };
 
+  RefreshToken.associate = (models) => {
+    // Verificar que el modelo user exista antes de establecer asociaciones
+    if (models.user) {
+      RefreshToken.belongsTo(models.user, {
+        foreignKey: "userId",
+        targetKey: "id",
+      });
+    }
+  };
+
   return RefreshToken;
 };

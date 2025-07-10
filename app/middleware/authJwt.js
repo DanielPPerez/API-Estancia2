@@ -33,10 +33,19 @@ const verifyToken = (req, res, next) => {
 // Función auxiliar para obtener los roles de un usuario usando Sequelize
 const getUserRoles = async (userId) => {
   try {
-    const user = await db.user.findByPk(userId, {
+    const User = db.users || db.user;
+    const Role = db.roles || db.role;
+    const UserRoles = db.user_roles;
+    
+    if (!User || !Role || !UserRoles) {
+      console.error("Modelos no disponibles:", { User: !!User, Role: !!Role, UserRoles: !!UserRoles });
+      return [];
+    }
+    
+    const user = await User.findByPk(userId, {
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         attributes: ['name']
       }]
     });

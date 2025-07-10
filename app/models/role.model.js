@@ -16,11 +16,14 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Role.associate = (models) => {
-    Role.belongsToMany(models.user, {
-      through: models.user_roles,
-      foreignKey: "roleId",
-      otherKey: "userId",
-    });
+    // Verificar que los modelos existan antes de establecer asociaciones
+    if (models.user && models.user_roles) {
+      Role.belongsToMany(models.user, {
+        through: models.user_roles,
+        foreignKey: "roleId",
+        otherKey: "userId",
+      });
+    }
   };
 
   return Role;

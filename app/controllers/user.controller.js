@@ -2,6 +2,11 @@
 const db = require('../models');
 const bcrypt = require('bcryptjs');
 
+// Obtener referencias a los modelos con nombres correctos
+const User = db.users || db.user;
+const Role = db.roles || db.role;
+const UserRoles = db.user_roles;
+
 exports.createUser = async (req, res) => {
   const { username, email, password, nombre, carrera, cuatrimestre, categoria } = req.body;
 
@@ -11,7 +16,7 @@ exports.createUser = async (req, res) => {
 
   try {
     const hashedPassword = bcrypt.hashSync(password, 8);
-    const user = await db.user.create({
+    const user = await User.create({
       username,
       email,
       password: hashedPassword,
@@ -34,11 +39,11 @@ exports.createUser = async (req, res) => {
 // Obtener todos los usuarios 
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await db.user.findAll({
+    const users = await User.findAll({
       attributes: ['id', 'username', 'email', 'nombre', 'carrera', 'cuatrimestre', 'categoria', 'createdAt'],
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         attributes: ['name']
       }]
     });
@@ -53,11 +58,11 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserById = async (req, res) => {
   const { id } = req.params;
   try {
-    const user = await db.user.findByPk(id, {
+    const user = await User.findByPk(id, {
       attributes: ['id', 'username', 'email', 'nombre', 'carrera', 'cuatrimestre', 'categoria', 'createdAt'],
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         attributes: ['id', 'name']
       }]
     });
@@ -79,7 +84,7 @@ exports.updateUser = async (req, res) => {
   const { username, email, nombre, carrera, cuatrimestre, categoria, password } = req.body;
 
   try {
-    const user = await db.user.findByPk(id);
+    const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).send({ message: `User with id ${id} not found.` });
     }
@@ -114,7 +119,7 @@ exports.deleteUserById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const user = await db.user.findByPk(id);
+    const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).send({ message: `User with id ${id} not found.` });
     }
@@ -138,21 +143,21 @@ exports.userBoard = (req, res) => {
 exports.adminBoard = async (req, res) => {
   try {
     // Obtener todos los usuarios
-    const allUsers = await db.user.findAll({
+    const allUsers = await User.findAll({
       attributes: ['id', 'username', 'email', 'nombre', 'carrera', 'cuatrimestre', 'categoria'],
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         attributes: ['name']
       }]
     });
 
     // Obtener evaluadores
-    const evaluadores = await db.user.findAll({
+    const evaluadores = await User.findAll({
       attributes: ['id', 'username', 'email', 'nombre', 'carrera', 'cuatrimestre', 'categoria'],
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         where: { name: 'evaluador' },
         attributes: ['name']
       }]
@@ -181,12 +186,12 @@ exports.assignRoleToUser = async (req, res) => {
   }
 
   try {
-    const user = await db.user.findByPk(userId);
+    const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).send({ message: "User not found." });
     }
 
-    const role = await db.role.findByPk(roleId);
+    const role = await Role.findByPk(roleId);
     if (!role) {
       return res.status(404).send({ message: "Role not found." });
     }
@@ -204,12 +209,12 @@ exports.removeRoleFromUser = async (req, res) => {
   const { userId, roleId } = req.params;
 
   try {
-    const user = await db.user.findByPk(userId);
+    const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).send({ message: "User not found." });
     }
 
-    const role = await db.role.findByPk(roleId);
+    const role = await Role.findByPk(roleId);
     if (!role) {
       return res.status(404).send({ message: "Role not found." });
     }
@@ -227,10 +232,10 @@ exports.getUserRoles = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const user = await db.user.findByPk(userId, {
+    const user = await User.findByPk(userId, {
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         attributes: ['id', 'name']
       }]
     });

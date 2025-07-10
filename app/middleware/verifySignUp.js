@@ -1,8 +1,8 @@
 // Contenido MODIFICADO para: app/middlewares/verifySignUp.js
 
 const db = require("../models");
-const User = db.user;
-const Role = db.role;
+const User = db.users || db.user;
+const Role = db.roles || db.role;
 
 const checkDuplicateUsernameOrEmail = async (req, res, next) => {
   try {

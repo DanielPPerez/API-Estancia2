@@ -7,6 +7,12 @@ const ms = require('ms');
 const db = require("../models");
 const config = require("../config/auth.config"); 
 
+// Obtener referencias a los modelos con nombres correctos
+const User = db.users || db.user;
+const Role = db.roles || db.role;
+const UserRoles = db.user_roles;
+const RefreshToken = db.refreshToken;
+
 // Función para convertir la duración del refresh token a una fecha de expiración
 const getRefreshTokenExpiryDate = () => {
   const durationMs = ms(config.jwtRefreshExpiration);
@@ -25,7 +31,7 @@ exports.signup = async (req, res) => {
     const hashedPassword = bcrypt.hashSync(password, 8);
 
     // 2. Crear usuario usando Sequelize
-    const user = await db.user.create({
+    const user = await User.create({
       username,
       email,
       password: hashedPassword,
@@ -42,7 +48,7 @@ exports.signup = async (req, res) => {
         return role.replace(/^role_/i, '').toLowerCase();
       });
 
-      const roleObjects = await db.role.findAll({
+      const roleObjects = await Role.findAll({
         where: {
           name: cleanRoles
         }
@@ -55,7 +61,7 @@ exports.signup = async (req, res) => {
       await user.setRoles(roleObjects);
     } else {
       // Asignar rol por defecto 'user'
-      const defaultRole = await db.role.findOne({
+      const defaultRole = await Role.findOne({
         where: { name: 'user' }
       });
       
@@ -89,11 +95,11 @@ exports.signin = async (req, res) => {
 
   try {
     // 1. Encontrar usuario usando Sequelize
-    const user = await db.user.findOne({
+    const user = await User.findOne({
       where: { username },
       include: [{
-        model: db.role,
-        through: db.user_roles,
+        model: Role,
+        through: UserRoles,
         attributes: ['name']
       }]
     });
@@ -121,12 +127,12 @@ exports.signin = async (req, res) => {
     const expiryDate = getRefreshTokenExpiryDate();
 
     // Eliminar tokens anteriores del usuario
-    await db.refreshToken.destroy({
+    await RefreshToken.destroy({
       where: { userId: user.id }
     });
 
     // Crear nuevo token
-    await db.refreshToken.create({
+    await RefreshToken.create({
       token: refreshTokenString,
       userId: user.id,
       expiryDate
@@ -163,7 +169,7 @@ exports.refreshToken = async (req, res) => {
 
   try {
     // 1. Buscar el token de refresco usando Sequelize
-    const refreshToken = await db.refreshToken.findOne({
+    const refreshToken = await RefreshToken.findOne({
       where: { token: requestToken }
     });
 

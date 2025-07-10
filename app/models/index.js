@@ -43,6 +43,7 @@ fs.readdirSync(__dirname)
   .forEach(file => {
     const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
     db[model.name] = model;
+    console.log(`📦 Modelo cargado: ${model.name} (${file})`);
   });
 
 // Establecer asociaciones de manera segura
@@ -50,13 +51,39 @@ Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
     try {
       db[modelName].associate(db);
+      console.log(`🔗 Asociaciones establecidas para: ${modelName}`);
     } catch (error) {
-      console.error(`Error setting associations for ${modelName}:`, error);
+      console.error(`❌ Error setting associations for ${modelName}:`, error);
     }
   }
 });
 
+// Crear alias para modelos con nombres diferentes
+if (db.roles && !db.role) {
+  db.role = db.roles;
+  console.log("🔄 Alias creado: db.role = db.roles");
+}
+
+if (db.users && !db.user) {
+  db.user = db.users;
+  console.log("🔄 Alias creado: db.user = db.users");
+}
+
+if (db.projects && !db.proyecto) {
+  db.proyecto = db.projects;
+  console.log("🔄 Alias creado: db.proyecto = db.projects");
+}
+
+if (db.refreshToken && !db.refreshTokens) {
+  db.refreshTokens = db.refreshToken;
+  console.log("🔄 Alias creado: db.refreshTokens = db.refreshToken");
+}
+
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
+
+console.log("📋 Modelos disponibles:", Object.keys(db).filter(key => 
+  key !== 'sequelize' && key !== 'Sequelize'
+));
 
 module.exports = db;

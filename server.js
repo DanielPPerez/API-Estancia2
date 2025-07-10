@@ -1,4 +1,5 @@
 // server.js - Versión optimizada para despliegue
+
 const express = require("express");
 const cors = require("cors");
 require('dotenv').config();
@@ -48,7 +49,7 @@ const start = async () => {
     // OPCIÓN A: PARA TU PRIMER DESPLIEGUE EN RENDER
     // Usa { force: true } para borrar todas las tablas existentes y crearlas de nuevo.
     // ¡CUIDADO! ESTO ELIMINA TODOS LOS DATOS. Úsalo solo la primera vez.
-    await db.sequelize.sync();
+    await db.sequelize.sync({ force: true });
     console.log("Database tables dropped and re-synced successfully.");
     // Después de sincronizar, ejecutamos la configuración inicial para crear roles, etc.
     await initialSetup();

@@ -169,3 +169,79 @@ exports.adminBoard = async (req, res) => {
 exports.moderatorBoard = (req, res) => {
   res.status(200).send({ message: "Moderator Content. Welcome moderator ID: " + req.userId });
 };
+
+// --- NUEVAS FUNCIONES PARA MANEJO DE ROLES ---
+
+// Asignar rol a usuario
+exports.assignRoleToUser = async (req, res) => {
+  const { userId, roleId } = req.body;
+
+  if (!userId || !roleId) {
+    return res.status(400).send({ message: "User ID and Role ID are required." });
+  }
+
+  try {
+    const user = await db.user.findByPk(userId);
+    if (!user) {
+      return res.status(404).send({ message: "User not found." });
+    }
+
+    const role = await db.role.findByPk(roleId);
+    if (!role) {
+      return res.status(404).send({ message: "Role not found." });
+    }
+
+    await user.addRole(role);
+    res.status(200).send({ message: "Role assigned successfully." });
+  } catch (error) {
+    console.error("Error assigning role:", error);
+    res.status(500).send({ message: error.message || "Error assigning role to user." });
+  }
+};
+
+// Remover rol de usuario
+exports.removeRoleFromUser = async (req, res) => {
+  const { userId, roleId } = req.params;
+
+  try {
+    const user = await db.user.findByPk(userId);
+    if (!user) {
+      return res.status(404).send({ message: "User not found." });
+    }
+
+    const role = await db.role.findByPk(roleId);
+    if (!role) {
+      return res.status(404).send({ message: "Role not found." });
+    }
+
+    await user.removeRole(role);
+    res.status(200).send({ message: "Role removed successfully." });
+  } catch (error) {
+    console.error("Error removing role:", error);
+    res.status(500).send({ message: error.message || "Error removing role from user." });
+  }
+};
+
+// Obtener roles de un usuario
+exports.getUserRoles = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await db.user.findByPk(userId, {
+      include: [{
+        model: db.role,
+        through: db.user_roles,
+        attributes: ['id', 'name']
+      }]
+    });
+
+    if (!user) {
+      return res.status(404).send({ message: "User not found." });
+    }
+
+    res.status(200).send(user.roles);
+  } catch (error) {
+    console.error("Error fetching user roles:", error);
+    res.status(500).send({ message: error.message || "Error fetching user roles." });
+  }
+};

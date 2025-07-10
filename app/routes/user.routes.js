@@ -13,29 +13,29 @@ module.exports = function (app) {
     next();
   });
 
-  // Rutas de contenido general (como las tenías)
-  // app.get("/api/users/all", userController.allAccess); // No tenías allAccess en el user.controller adaptado
-
-  // Rutas CRUD para Usuarios (ejemplos)
+  // Rutas CRUD para Usuarios (solo admin)
   app.get("/api/users", [authJwt.verifyToken, authJwt.isAdmin], userController.getAllUsers);
-  app.get("/api/users/:id", [authJwt.verifyToken, authJwt.isAdmin], userController.getUserById); // O permitir al propio usuario ver su info
-  app.put("/api/users/:id", [authJwt.verifyToken, authJwt.isAdmin], userController.updateUser); // O permitir al propio usuario editarse
+  app.get("/api/users/:id", [authJwt.verifyToken, authJwt.isAdmin], userController.getUserById);
+  app.put("/api/users/:id", [authJwt.verifyToken, authJwt.isAdmin], userController.updateUser);
   app.delete("/api/users/:id", [authJwt.verifyToken, authJwt.isAdmin], userController.deleteUserById);
 
-
   // Rutas específicas de "boards"
-  app.get("/api/users/userboard", [authJwt.verifyToken], userController.userBoard); // Panel para usuario logueado
+  app.get("/api/users/userboard", [authJwt.verifyToken], userController.userBoard);
 
   app.get(
-    "/api/users/modboard", // Panel para moderadores
+    "/api/users/modboard",
     [authJwt.verifyToken, authJwt.isModerator],
-    userController.moderatorBoard // Asumiendo que tienes una función para esto en user.controller o calificaciones.controller
+    userController.moderatorBoard
   );
 
   app.get(
-    "/api/users/adminboard", // Panel para administradores
+    "/api/users/adminboard",
     [authJwt.verifyToken, authJwt.isAdmin],
     userController.adminBoard
   );
 
+  // Rutas para asignar/remover roles (solo admin)
+  app.post("/api/users/assign-role", [authJwt.verifyToken, authJwt.isAdmin], userController.assignRoleToUser);
+  app.delete("/api/users/:userId/roles/:roleId", [authJwt.verifyToken, authJwt.isAdmin], userController.removeRoleFromUser);
+  app.get("/api/users/:userId/roles", [authJwt.verifyToken], userController.getUserRoles);
 };

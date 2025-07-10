@@ -1,137 +1,122 @@
-// Importamos los modelos de Sequelize, no la configuración
-const db = require("../models"); 
-const bcrypt = require('bcryptjs');
+// app/config/initialSetup.js
+const db = require("../models");
+const bcrypt = require("bcryptjs");
 
-// Los modelos están disponibles en el objeto 'db'
-const Role = db.role;
-const User = db.user;
-
-// --- DATOS DE CONFIGURACIÓN (sin cambios) ---
-const ROLES = ['user', 'moderator', 'admin', 'evaluador'];
-
-const USERS = [
-  // Administradora
-  {
-    email: 'cmadariaga@upchiapas.edu.mx',
-    username: 'Claudia Madariaga',
-    nombre: 'Claudia Madariaga',
-    password: 'Claudia2025!',
-    roles: ['admin', 'moderator', 'user', 'evaluador']
-  },
-  // Evaluadores
-  {
-    email: 'paniawoah@gmail.com',
-    username: 'Daniel Paniagua',
-    nombre: 'Daniel Paniagua',
-    password: 'Daniel2025!',
-    roles: ['evaluador', 'user']
-  },
-  {
-    email: 'roberto.borges@seyt.gob.mx',
-    username: 'Roberto Borges',
-    nombre: 'Roberto Borges',
-    password: 'Roberto2025!',
-    roles: ['evaluador', 'user']
-  },
-  {
-    email: 'capacitaeconomia@gmail.com',
-    username: 'Mauricio Camacho',
-    nombre: 'Mauricio Camacho',
-    password: 'Mauricio2025!',
-    roles: ['evaluador', 'user']
-  },
-  {
-    email: 'dpedrero@hotmail.com',
-    username: 'Damian Pedrero',
-    nombre: 'Damian Pedrero',
-    password: 'Damian2025!',
-    roles: ['evaluador', 'user']
-  }
-];
-
-// --- FUNCIONES DE LÓGICA (Reescritas con Sequelize) ---
-
-async function syncDatabase() {
-  console.log("Synchronizing database with Sequelize...");
+const setupDatabase = async () => {
   try {
-    // Force: false - no elimina las tablas existentes
-    // Alter: true - modifica las tablas existentes si es necesario
-    await db.sequelize.sync({ force: false, alter: true });
-    console.log("Database synchronized successfully.");
-  } catch (error) {
-    console.error("Error synchronizing database:", error);
-    throw error;
-  }
-}
+    console.log("🔄 Iniciando configuración de la base de datos...");
 
-async function createRoles() {
-  console.log("Checking and creating roles using Sequelize...");
-  try {
-    for (const roleName of ROLES) {
-      // Usamos Role.findOrCreate. Es el método perfecto para esto.
-      // Busca un rol por nombre, si no lo encuentra, lo crea.
-      const [role, created] = await Role.findOrCreate({
-        where: { name: roleName }
+    // 1. Sincronizar todos los modelos
+    await db.sequelize.sync({ force: false });
+    console.log("✅ Modelos sincronizados");
+
+    // 2. Crear roles básicos si no existen
+    const roles = [
+      { name: 'user', description: 'Usuario regular' },
+      { name: 'admin', description: 'Administrador del sistema' },
+      { name: 'evaluador', description: 'Evaluador de proyectos' },
+      { name: 'moderator', description: 'Moderador del sistema' }
+    ];
+
+    for (const roleData of roles) {
+      await db.role.findOrCreate({
+        where: { name: roleData.name },
+        defaults: roleData
       });
-      if (created) {
-        console.log(` -> Role '${roleName}' created.`);
-      }
     }
-    console.log("Roles are up to date.");
-  } catch (error) {
-    console.error("Error creating roles with Sequelize:", error);
-    throw error;
-  }
-}
+    console.log("✅ Roles creados/verificados");
 
-async function createUsers() {
-  console.log("Checking and creating initial users using Sequelize...");
-  try {
-    for (const userData of USERS) {
-      // 1. Buscamos o creamos el usuario
-      const [user, created] = await User.findOrCreate({
-        where: { email: userData.email },
-        // 'defaults' se usa solo si el usuario necesita ser creado
-        defaults: {
-          username: userData.username,
-          nombre: userData.nombre,
-          password: bcrypt.hashSync(userData.password, 8)
-        }
+    // 3. Crear usuario administrador por defecto si no existe
+    const adminUser = await db.user.findOne({
+      where: { username: 'admin' }
+    });
+
+    if (!adminUser) {
+      console.log("🔧 Creando usuario administrador por defecto...");
+      
+      const hashedPassword = bcrypt.hashSync('admin123', 8);
+      
+      const newAdmin = await db.user.create({
+        username: 'admin',
+        email: 'admin@upchiapas.edu.mx',
+        password: hashedPassword,
+        nombre: 'Administrador',
+        carrera: 'Sistemas',
+        cuatrimestre: '8',
+        categoria: 'Emprendimiento'
       });
 
-      // 2. Si el usuario fue creado, le asignamos sus roles
-      if (created) {
-        console.log(` -> User '${userData.email}' created.`);
-        
-        // Buscamos los objetos de Role que corresponden a los nombres de los roles
-        const rolesInDb = await Role.findAll({
-          where: {
-            name: userData.roles // Sequelize entiende este array y busca todos los roles
-          }
-        });
+      // Asignar rol de administrador
+      const adminRole = await db.role.findOne({
+        where: { name: 'admin' }
+      });
 
-        // Usamos el método mágico 'setRoles' que Sequelize crea para la asociación
-        await user.setRoles(rolesInDb);
-        console.log(`    - Roles assigned for '${userData.email}'.`);
+      if (adminRole) {
+        await newAdmin.setRoles([adminRole]);
+        console.log("✅ Usuario administrador creado con rol 'admin'");
+      } else {
+        console.error("❌ Error: No se encontró el rol 'admin'");
       }
+    } else {
+      console.log("✅ Usuario administrador ya existe");
     }
-    console.log("Initial users are up to date.");
-  } catch (error) {
-    console.error("Error creating users with Sequelize:", error);
-    throw error;
-  }
-}
 
-// --- FUNCIÓN PRINCIPAL EXPORTADA (sin cambios en la lógica de llamada) ---
-exports.initialSetup = async () => {
-  try {
-    console.log("--- Starting Initial Server Setup ---");
-    await syncDatabase();
-    await createRoles();
-    await createUsers();
-    console.log("--- Initial Setup Complete ---");
-  } catch(error) {
-    console.error("!!! CRITICAL: Initial setup failed. Server might not work as expected. !!!");
-    // No es necesario imprimir el error dos veces, ya se imprime en la función que falla.
+    // 4. Crear usuario evaluador por defecto si no existe
+    const evaluadorUser = await db.user.findOne({
+      where: { username: 'evaluador' }
+    });
+
+    if (!evaluadorUser) {
+      console.log("🔧 Creando usuario evaluador por defecto...");
+      
+      const hashedPassword = bcrypt.hashSync('evaluador123', 8);
+      
+      const newEvaluador = await db.user.create({
+        username: 'evaluador',
+        email: 'evaluador@upchiapas.edu.mx',
+        password: hashedPassword,
+        nombre: 'Evaluador',
+        carrera: 'Sistemas',
+        cuatrimestre: '8',
+        categoria: 'Emprendimiento'
+      });
+
+      // Asignar rol de evaluador
+      const evaluadorRole = await db.role.findOne({
+        where: { name: 'evaluador' }
+      });
+
+      if (evaluadorRole) {
+        await newEvaluador.setRoles([evaluadorRole]);
+        console.log("✅ Usuario evaluador creado con rol 'evaluador'");
+      } else {
+        console.error("❌ Error: No se encontró el rol 'evaluador'");
+      }
+    } else {
+      console.log("✅ Usuario evaluador ya existe");
+    }
+
+    console.log("🎉 Configuración de base de datos completada exitosamente");
+    
+    // Mostrar información de usuarios creados
+    const allUsers = await db.user.findAll({
+      include: [{
+        model: db.role,
+        through: db.user_roles,
+        attributes: ['name']
+      }]
+    });
+
+    console.log("\n📋 Usuarios en el sistema:");
+    allUsers.forEach(user => {
+      const roles = user.roles.map(role => role.name).join(', ');
+      console.log(`- ${user.username} (${user.email}) - Roles: ${roles}`);
+    });
+
+  } catch (error) {
+    console.error("❌ Error durante la configuración:", error);
+    throw error;
   }
 };
+
+module.exports = { setupDatabase };

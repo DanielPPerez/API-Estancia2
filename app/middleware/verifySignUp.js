@@ -1,8 +1,8 @@
 // Contenido MODIFICADO para: app/middlewares/verifySignUp.js
 
 const db = require("../models");
-const ROLES = db.ROLES;
 const User = db.user;
+const Role = db.role;
 
 const checkDuplicateUsernameOrEmail = async (req, res, next) => {
   try {
@@ -36,22 +36,39 @@ const checkDuplicateUsernameOrEmail = async (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error("Error in checkDuplicateUsernameOrEmail: ", error); // Log para ti en Railway
+    console.error("Error in checkDuplicateUsernameOrEmail: ", error);
     return res.status(500).send({
       message: "An error occurred while checking for duplicate user."
     });
   }
 };
 
-const checkRolesExisted = (req, res, next) => {
+const checkRolesExisted = async (req, res, next) => {
   if (req.body.roles) {
-    for (let i = 0; i < req.body.roles.length; i++) {
-      if (!ROLES.includes(req.body.roles[i])) {
-        res.status(400).send({
-          message: "Failed! Role does not exist = " + req.body.roles[i]
-        });
-        return;
+    try {
+      // Obtener todos los roles disponibles
+      const availableRoles = await Role.findAll({
+        attributes: ['name']
+      });
+      
+      const availableRoleNames = availableRoles.map(role => role.name.toLowerCase());
+      
+      // Verificar que todos los roles solicitados existan
+      for (let i = 0; i < req.body.roles.length; i++) {
+        const requestedRole = req.body.roles[i].toLowerCase();
+        // Remover prefijo ROLE_ si existe
+        const cleanRole = requestedRole.replace('role_', '');
+        if (!availableRoleNames.includes(cleanRole)) {
+          return res.status(400).send({
+            message: "Failed! Role does not exist = " + req.body.roles[i]
+          });
+        }
       }
+    } catch (error) {
+      console.error("Error in checkRolesExisted: ", error);
+      return res.status(500).send({
+        message: "An error occurred while checking roles."
+      });
     }
   }
   

@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const config = require("../config/auth.config.js");
-const pool = require("../config/db.config"); 
+const db = require("../models"); 
 
 const { TokenExpiredError } = jwt;
 
@@ -30,17 +30,23 @@ const verifyToken = (req, res, next) => {
   });
 };
 
-// Función auxiliar para obtener los roles de un usuario
+// Función auxiliar para obtener los roles de un usuario usando Sequelize
 const getUserRoles = async (userId) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT r.name 
-       FROM roles r
-       JOIN user_roles ur ON r.id = ur.role_id
-       WHERE ur.user_id = ?`,
-      [userId]
-    );
-    return rows.map(row => row.name.toLowerCase()); // Devolver nombres de roles en minúsculas
+    const user = await db.user.findByPk(userId, {
+      include: [{
+        model: db.role,
+        through: db.user_roles,
+        attributes: ['name']
+      }]
+    });
+    
+    if (!user) {
+      return [];
+    }
+    
+    // Devolver nombres de roles en minúsculas sin prefijo
+    return user.roles.map(role => role.name.toLowerCase()); 
   } catch (error) {
     console.error("Error fetching user roles:", error);
     return []; 
@@ -98,7 +104,6 @@ const isEvaluador = async (req, res, next) => { // Añadido ejemplo para 'evalua
   }
 };
 
-
 const isModeratorOrAdmin = async (req, res, next) => {
   if (!req.userId) {
     return res.status(403).send({ message: "User ID not found in request." });
@@ -116,11 +121,30 @@ const isModeratorOrAdmin = async (req, res, next) => {
   }
 };
 
+// Middleware para evaluador o admin
+const isEvaluadorOrAdmin = async (req, res, next) => {
+  if (!req.userId) {
+    return res.status(403).send({ message: "User ID not found in request." });
+  }
+  try {
+    const roles = await getUserRoles(req.userId);
+    if (roles.includes("evaluador") || roles.includes("admin")) {
+      next();
+      return;
+    }
+    res.status(403).send({ message: "Require Evaluador or Admin Role!" });
+  } catch (error) {
+    console.error("isEvaluadorOrAdmin middleware error:", error);
+    res.status(500).send({ message: "Error checking evaluador/admin role." });
+  }
+};
+
 const authJwt = {
   verifyToken,
   isAdmin,
   isModerator,
   isEvaluador, // Añadido
   isModeratorOrAdmin,
+  isEvaluadorOrAdmin, // Añadido
 };
 module.exports = authJwt;

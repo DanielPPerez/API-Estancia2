@@ -12,52 +12,51 @@ module.exports = function(app) {
   });
 
   // Crear una nueva calificación para un proyecto
-  // Solo usuarios con rol 'evaluador' (o 'moderador', 'admin' según tu lógica)
   app.post(
     "/api/calificaciones",
-    [authJwt.verifyToken, authJwt.isEvaluador], // o authJwt.isModerator, o una combinación
+    [authJwt.verifyToken, authJwt.isEvaluadorOrAdmin],
     controller.createCalificacion
   );
 
-  // Obtener todas las calificaciones (Admin o Moderador)
+  // Obtener todas las calificaciones (Admin o Evaluador)
   app.get(
     "/api/calificaciones",
-    [authJwt.verifyToken, authJwt.isModeratorOrAdmin],
+    [authJwt.verifyToken, authJwt.isEvaluadorOrAdmin],
     controller.getAllCalificaciones
   );
 
   // Obtener todas las calificaciones de un proyecto específico
   app.get(
     "/api/calificaciones/proyecto/:proyectoId",
-    [authJwt.verifyToken], // La autorización más fina (dueño, evaluador, admin) puede estar en el controlador
+    [authJwt.verifyToken],
     controller.getCalificacionesByProyectoId
   );
 
-  // Obtener las calificaciones hechas por un evaluador (el propio evaluador o un admin)
-  // Para el propio evaluador:
+  // Obtener las calificaciones hechas por un evaluador
   app.get(
     "/api/calificaciones/evaluador/my",
-    [authJwt.verifyToken, authJwt.isEvaluador],
-    controller.getCalificacionesByEvaluadorId // El controlador usa req.userId
+    [authJwt.verifyToken, authJwt.isEvaluadorOrAdmin],
+    controller.getCalificacionesByEvaluadorId
   );
-  // Para que un admin vea las de cualquier evaluador:
+  
+  // Para que un admin vea las de cualquier evaluador
   app.get(
     "/api/calificaciones/evaluador/:evaluadorId",
     [authJwt.verifyToken, authJwt.isAdmin],
-    controller.getCalificacionesByEvaluadorId // El controlador usa req.params.evaluadorId
+    controller.getCalificacionesByEvaluadorId
   );
 
   // Actualizar una calificación existente por su ID
   app.put(
     "/api/calificaciones/:id",
-    [authJwt.verifyToken, authJwt.isEvaluador], // El controlador verificará la propiedad o si es Admin
+    [authJwt.verifyToken, authJwt.isEvaluadorOrAdmin],
     controller.updateCalificacion
   );
 
   // Eliminar una calificación por su ID
   app.delete(
     "/api/calificaciones/:id",
-    [authJwt.verifyToken, authJwt.isEvaluador], // El controlador verificará la propiedad o si es Admin
+    [authJwt.verifyToken, authJwt.isEvaluadorOrAdmin],
     controller.deleteCalificacion
   );
 };

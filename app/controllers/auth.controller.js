@@ -35,15 +35,20 @@ exports.signup = async (req, res) => {
       categoria
     });
 
-    // 3. Asignar roles
+    // 3. Asignar roles - Limpiar prefijos ROLE_ si existen
     if (roles && roles.length > 0) {
+      const cleanRoles = roles.map(role => {
+        // Remover prefijo ROLE_ si existe y convertir a minúsculas
+        return role.replace(/^role_/i, '').toLowerCase();
+      });
+
       const roleObjects = await db.role.findAll({
         where: {
-          name: roles.map(r => r.toLowerCase())
+          name: cleanRoles
         }
       });
 
-      if (roleObjects.length !== roles.length) {
+      if (roleObjects.length !== cleanRoles.length) {
         return res.status(400).send({ message: "One or more specified roles do not exist." });
       }
 
@@ -127,8 +132,8 @@ exports.signin = async (req, res) => {
       expiryDate
     });
 
-    // 5. Obtener roles del usuario
-    const authorities = user.roles.map(role => "ROLE_" + role.name.toUpperCase());
+    // 5. Obtener roles del usuario - DEVOLVER NOMBRES SIN PREFIJO
+    const roleNames = user.roles.map(role => role.name);
 
     res.status(200).send({
       id: user.id,
@@ -138,7 +143,7 @@ exports.signin = async (req, res) => {
       carrera: user.carrera,
       cuatrimestre: user.cuatrimestre,
       categoria: user.categoria,
-      roles: authorities,
+      roles: roleNames, // Cambiado: devolver nombres de roles sin prefijo
       accessToken: accessToken,
       refreshToken: refreshTokenString,
     });

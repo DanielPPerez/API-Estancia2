@@ -2,41 +2,71 @@
 // Configuración específica para PostgreSQL
 require('dotenv').config();
 
-module.exports = {
-  // Estos valores se usan si NO se encuentra la variable DATABASE_URL en el entorno.
-  // Son útiles para tu desarrollo local.
-  HOST: process.env.DB_HOST || 'localhost',
-  USER: process.env.DB_USER || 'postgres', // Usuario por defecto para PostgreSQL local
-  PASSWORD: process.env.DB_PASSWORD || 'tu_contraseña_local', // Cambia esto por tu contraseña local
-  DB: process.env.DB_NAME || 'api_estancia_dev',
+// Función para parsear la URL de la base de datos
+function parseDatabaseUrl() {
+  const databaseUrl = process.env.DATABASE_URL;
   
-  // ¡Este es el cambio más importante! Le decimos a Sequelize que use PostgreSQL.
-  dialect: "postgres",
-
-  // Esta es la configuración del pool de conexiones que Sequelize gestionará.
-  pool: {
-    max: 5,       // Número máximo de conexiones en el pool
-    min: 0,       // Número mínimo de conexiones en el pool
-    acquire: 30000, // Tiempo máximo (en ms) que el pool intentará obtener una conexión antes de lanzar un error
-    idle: 10000     // Tiempo máximo (en ms) que una conexión puede estar inactiva antes de ser liberada
-  },
-
-  // Opciones específicas del dialecto, crucial para la conexión en Render (y otros servicios en la nube).
-  dialectOptions: {
-    ssl: {
-      require: true,
-      // Esta línea es necesaria para evitar errores de certificados autofirmados en Render.
-      rejectUnauthorized: false 
+  if (databaseUrl) {
+    try {
+      // Parsear la URL de la base de datos
+      const url = new URL(databaseUrl);
+      return {
+        host: url.hostname,
+        port: url.port || 5432,
+        username: url.username,
+        password: url.password,
+        database: url.pathname.substring(1), // Remover el slash inicial
+        dialect: "postgres",
+        dialectOptions: {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false
+          }
+        },
+        pool: {
+          max: 5,
+          min: 0,
+          acquire: 30000,
+          idle: 10000
+        },
+        define: {
+          underscored: true,
+          freezeTableName: true,
+          timestamps: true
+        }
+      };
+    } catch (error) {
+      console.error('Error parsing DATABASE_URL:', error);
+      // Fallback a configuración local
     }
-  },
-
-  // Configuración adicional para PostgreSQL
-  define: {
-    // Usar snake_case para nombres de columnas en PostgreSQL
-    underscored: true,
-    // No agregar 's' al final de los nombres de tabla
-    freezeTableName: true,
-    // Usar timestamps automáticamente
-    timestamps: true
   }
-};
+  
+  // Configuración local
+  return {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    username: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'tu_contraseña_local',
+    database: process.env.DB_NAME || 'api_estancia_dev',
+    dialect: "postgres",
+    dialectOptions: {
+      ssl: process.env.NODE_ENV === 'production' ? {
+        require: true,
+        rejectUnauthorized: false
+      } : false
+    },
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    },
+    define: {
+      underscored: true,
+      freezeTableName: true,
+      timestamps: true
+    }
+  };
+}
+
+module.exports = parseDatabaseUrl();

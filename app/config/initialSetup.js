@@ -95,12 +95,12 @@ async function createUsersAndAssignRoles() {
         const roleId = roleMap.get(roleName);
         if (roleId) {
           const [userRoleRows] = await pool.query(
-            "SELECT * FROM user_roles WHERE user_id = ? AND role_id = ?",
+            "SELECT * FROM user_roles WHERE userId = ? AND roleId = ?",
             [userId, roleId]
           );
           if (userRoleRows.length === 0) {
             await pool.query(
-              "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
+              "INSERT INTO user_roles (userId, roleId) VALUES (?, ?)",
               [userId, roleId]
             );
             console.log(`    - Role '${roleName}' assigned to user '${userData.email}'.`);

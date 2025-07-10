@@ -48,7 +48,7 @@ const start = async () => {
     // OPCIÓN A: PARA TU PRIMER DESPLIEGUE EN RENDER
     // Usa { force: true } para borrar todas las tablas existentes y crearlas de nuevo.
     // ¡CUIDADO! ESTO ELIMINA TODOS LOS DATOS. Úsalo solo la primera vez.
-    await db.sequelize.sync({ force: true });
+    await db.sequelize.sync();
     console.log("Database tables dropped and re-synced successfully.");
     // Después de sincronizar, ejecutamos la configuración inicial para crear roles, etc.
     await initialSetup();

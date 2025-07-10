@@ -1,4 +1,4 @@
-// Contenido para el NUEVO archivo: app/config/db.pool.js
+// Contenido CORRECTO y LIMPIO para: app/config/db.pool.js
 
 const mysql = require('mysql2/promise');
 const dbConfig = require('./db.config.js'); // Importamos la configuración

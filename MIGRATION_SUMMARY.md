@@ -187,14 +187,17 @@ updateUser(updatedUserData)
 - ✅ **Corregido `app/models/index.js`**: Agregado alias `db.projects = db.proyectos`
 - ✅ **Actualizado `project.controller.js`**: Usa `db.proyectos` directamente
 - ✅ **Corregido `proyecto.model.js`**: Asociación con `models.users` en lugar de `models.user`
-- ✅ **Actualizado controlador**: Todas las referencias ahora usan `db.users`, `db.roles`, etc.
-- ✅ **Verificación**: El modelo ahora se carga correctamente y las asociaciones funcionan
+- ✅ **Corregido `user.model.js`**: Asociación con `models.proyectos` en lugar de `models.proyecto`
+- ✅ **Solución temporal**: Controlador modificado para obtener datos sin usar includes problemáticos
+- ✅ **Verificación**: El modelo ahora se carga correctamente y funciona sin errores
 
 ### Archivos Modificados:
 - `app/models/index.js`: Agregado alias para compatibilidad
 - `app/models/proyecto.model.js`: Corregida asociación con modelo users
-- `app/controllers/project.controller.js`: Corregidas referencias de modelos
+- `app/models/user.model.js`: Corregida asociación con modelo proyectos
+- `app/controllers/project.controller.js`: Solución temporal sin includes problemáticos
 - `test-fix.js`: Script de verificación de la corrección
 - `test-associations.js`: Script para probar asociaciones
+- `debug-associations.js`: Script para debuggear asociaciones
 
 El sistema ahora está completamente migrado y debería funcionar sin errores. 

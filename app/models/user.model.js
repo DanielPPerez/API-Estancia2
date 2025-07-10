@@ -49,9 +49,9 @@ module.exports = (sequelize, DataTypes) => {
       });
     }
 
-    if (models.proyecto) {
+    if (models.proyectos) {
       // Asociación uno a muchos con Proyecto
-      User.hasMany(models.proyecto, {
+      User.hasMany(models.proyectos, {
         foreignKey: "idUser",
         as: "proyectos",
       });

@@ -52,15 +52,36 @@ exports.createProject = async (req, res) => {
 // Obtener todos los proyectos (con información básica del usuario)
 exports.getAllProjects = async (req, res) => {
   try {
+    // Primero intentar sin include para verificar que el modelo funciona
     const projects = await Proyecto.findAll({
-      include: [{
-        model: db.users,
-        as: 'user',
-        attributes: ['username', 'nombre', 'categoria']
-      }],
       order: [['createdAt', 'DESC']]
     });
-    res.status(200).send(projects);
+    
+    // Si hay proyectos, obtener información de usuarios por separado
+    if (projects.length > 0) {
+      const userIds = [...new Set(projects.map(p => p.idUser))];
+      const users = await db.users.findAll({
+        where: { id: userIds },
+        attributes: ['id', 'username', 'nombre', 'categoria']
+      });
+      
+      // Crear un mapa de usuarios para acceso rápido
+      const userMap = {};
+      users.forEach(user => {
+        userMap[user.id] = user;
+      });
+      
+      // Agregar información de usuario a cada proyecto
+      const projectsWithUsers = projects.map(project => {
+        const projectData = project.toJSON();
+        projectData.user = userMap[project.idUser] || null;
+        return projectData;
+      });
+      
+      res.status(200).send(projectsWithUsers);
+    } else {
+      res.status(200).send(projects);
+    }
   } catch (error) {
     console.error("Error fetching projects:", error);
     res.status(500).send({ message: error.message || "Some error occurred while retrieving projects." });
@@ -71,19 +92,21 @@ exports.getAllProjects = async (req, res) => {
 exports.getProjectById = async (req, res) => {
   const { id } = req.params;
   try {
-    const project = await Proyecto.findByPk(id, {
-      include: [{
-        model: db.users,
-        as: 'user',
-        attributes: ['username', 'nombre', 'email']
-      }]
-    });
+    const project = await Proyecto.findByPk(id);
     
     if (!project) {
       return res.status(404).send({ message: `Project with id ${id} not found.` });
     }
     
-    res.status(200).send(project);
+    // Obtener información del usuario por separado
+    const user = await db.users.findByPk(project.idUser, {
+      attributes: ['username', 'nombre', 'email']
+    });
+    
+    const projectData = project.toJSON();
+    projectData.user = user;
+    
+    res.status(200).send(projectData);
   } catch (error) {
     console.error(`Error fetching project with id ${id}:`, error);
     res.status(500).send({ message: error.message || "Error retrieving project with id " + id });
@@ -105,7 +128,7 @@ exports.getProjectsByUserId = async (req, res) => {
     });
     
     if (!user) {
-      return res.status(404).send({ message: `User with ID ${userId} not found.` });
+        return res.status(404).send({ message: `User with ID ${userId} not found.` });
     }
     
     res.status(200).send(user); 
@@ -141,9 +164,9 @@ exports.updateProject = async (req, res) => {
       if (!user || user.roles.length === 0) {
         return res.status(403).send({ message: "Forbidden: You are not authorized to update this project." });
       }
-    }
+  }
 
-    // Manejo de archivos: si se suben nuevos, usar esas rutas, sino mantener las antiguas
+  // Manejo de archivos: si se suben nuevos, usar esas rutas, sino mantener las antiguas
     const fichaTecnicaPath = req.files && req.files['fichaTecnica'] ? req.files['fichaTecnica'][0].path : project.technicalSheet;
     const modeloCanvaPath = req.files && req.files['modeloCanva'] ? req.files['modeloCanva'][0].path : project.canvaModel;
     const pdfProyectoPath = req.files && req.files['pdfProyecto'] ? req.files['pdfProyecto'][0].path : project.projectPdf;
@@ -153,15 +176,15 @@ exports.updateProject = async (req, res) => {
     if (descripcion !== undefined) updateData.description = descripcion;
     if (videoPitch !== undefined) updateData.videoLink = videoPitch;
     if (estatus !== undefined) updateData.estatus = estatus;
-    
-    // Si se subió un nuevo archivo, la ruta ya está en la variable correspondiente
+  
+  // Si se subió un nuevo archivo, la ruta ya está en la variable correspondiente
     if (req.files && req.files['fichaTecnica']) updateData.technicalSheet = fichaTecnicaPath;
     if (req.files && req.files['modeloCanva']) updateData.canvaModel = modeloCanvaPath;
     if (req.files && req.files['pdfProyecto']) updateData.projectPdf = pdfProyectoPath;
-    
+  
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).send({ message: "No fields to update provided." });
-    }
+    return res.status(400).send({ message: "No fields to update provided." });
+  }
 
     await project.update(updateData);
 
@@ -229,8 +252,8 @@ exports.deleteProject = async (req, res) => {
 
 // Descargar archivo de proyecto
 exports.downloadProjectFile = async (req, res) => {
-  const { projectId, fileType } = req.params;
-  
+    const { projectId, fileType } = req.params; 
+
   try {
     const project = await Proyecto.findByPk(projectId);
     if (!project) {
@@ -244,26 +267,26 @@ exports.downloadProjectFile = async (req, res) => {
       case 'technicalSheet':
         filePath = project.technicalSheet;
         fileName = `ficha_tecnica_${project.name}.pdf`;
-        break;
+            break;
       case 'canvaModel':
         filePath = project.canvaModel;
         fileName = `modelo_canvas_${project.name}.pdf`;
-        break;
+            break;
       case 'projectPdf':
         filePath = project.projectPdf;
         fileName = `proyecto_${project.name}.pdf`;
-        break;
-      default:
+            break;
+        default:
         return res.status(400).send({ message: "Invalid file type." });
     }
 
     if (!filePath || !fs.existsSync(filePath)) {
       return res.status(404).send({ message: "File not found." });
-    }
+        }
 
     res.download(filePath, fileName);
   } catch (error) {
     console.error("Error downloading project file:", error);
     res.status(500).send({ message: "Error downloading file." });
-  }
+    }
 };

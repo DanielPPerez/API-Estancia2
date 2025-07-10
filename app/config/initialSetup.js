@@ -1,4 +1,5 @@
-const pool = require('./db.config');
+// DESPUÉS
+const pool = require('./db.pool.js');
 const bcrypt = require('bcryptjs');
 
 // --- DATOS DE CONFIGURACIÓN ---

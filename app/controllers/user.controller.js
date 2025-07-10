@@ -2,10 +2,7 @@
 const pool = require('../config/db.pool');
 const bcrypt = require('bcryptjs');
 
-// Crear un nuevo usuario (función básica, signup sería más compleja con roles)
-// Esta función es un CREATE básico. La función `signup` de tu `auth.controller.js`
-// es más completa porque también asigna roles. Deberías adaptar `signup` para usar SQL directo
-// y quizás llamar a una función como esta internamente o replicar su lógica de inserción.
+
 exports.createUser = async (req, res) => {
   const { username, email, password, nombre, carrera, cuatrimestre, categoria } = req.body;
 

@@ -57,7 +57,7 @@ async function createRoles() {
     for (const roleName of ROLES) {
       const [rows] = await pool.query("SELECT id FROM roles WHERE name = ?", [roleName]);
       if (rows.length === 0) {
-        await pool.query("INSERT INTO roles (name, createdAt, updatedAt) VALUES (?, NOW(), NOW())", [roleName]);
+        await pool.query("INSERT INTO roles (name, created_at, updated_at) VALUES (?, NOW(), NOW())", [roleName]);
         console.log(` -> Role '${roleName}' created.`);
       }
     }
@@ -82,7 +82,7 @@ async function createUsersAndAssignRoles() {
       if (userRows.length === 0) {
         const hashedPassword = bcrypt.hashSync(userData.password, 8);
         const [result] = await pool.query(
-          "INSERT INTO users (username, email, password, nombre, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())",
+          "INSERT INTO users (username, email, password, nombre, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
           [userData.username, userData.email, hashedPassword, userData.nombre]
         );
         userId = result.insertId;

@@ -57,7 +57,7 @@ async function createRoles() {
     for (const roleName of ROLES) {
       const [rows] = await pool.query("SELECT id FROM roles WHERE name = ?", [roleName]);
       if (rows.length === 0) {
-        await pool.query("INSERT INTO roles (name) VALUES (?)", [roleName]);
+        await pool.query("INSERT INTO roles (name, createdAt) VALUES (?, NOW())", [roleName]);
         console.log(` -> Role '${roleName}' created.`);
       }
     }

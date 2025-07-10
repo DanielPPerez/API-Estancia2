@@ -127,9 +127,9 @@ exports.signin = async (req, res) => {
     const expiryDate = getRefreshTokenExpiryDate();
 
    
-    await connection.query("DELETE FROM refresh_tokens WHERE userId = ?", [user.id]);
+    await connection.query("DELETE FROM refreshTokens WHERE userId = ?", [user.id]);
     await connection.query(
-      "INSERT INTO refresh_tokens (token, userId, expiry_date) VALUES (?, ?, ?)",
+      "INSERT INTO refreshTokens (token, userId, expiryDate) VALUES (?, ?, ?)",
       [refreshTokenString, user.id, expiryDate]
     );
 
@@ -177,7 +177,7 @@ exports.refreshToken = async (req, res) => {
 
     // 1. Buscar el token de refresco en la BD
     const [tokenRows] = await connection.query(
-      "SELECT * FROM refresh_tokens WHERE token = ?",
+      "SELECT * FROM refreshTokens WHERE token = ?",
       [requestToken]
     );
 
@@ -187,9 +187,9 @@ exports.refreshToken = async (req, res) => {
     const refreshTokenData = tokenRows[0];
 
     // 2. Verificar si el token de refresco ha expirado
-    if (new Date(refreshTokenData.expiry_date) < new Date()) {
+    if (new Date(refreshTokenData.expiryDate) < new Date()) {
       // Token expirado, eliminarlo de la BD
-      await connection.query("DELETE FROM refresh_tokens WHERE id = ?", [refreshTokenData.id]);
+      await connection.query("DELETE FROM refreshTokens WHERE id = ?", [refreshTokenData.id]);
       return res.status(403).json({
         message: "Refresh token was expired. Please make a new signin request.",
       });

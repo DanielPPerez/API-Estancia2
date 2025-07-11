@@ -1,6 +1,7 @@
 // app/config/initialSetup.js
 const db = require("../models");
 const bcrypt = require("bcryptjs");
+const { Op } = require("sequelize");
 
 // Definir los usuarios que deben existir en el sistema
 const USERS = [
@@ -101,20 +102,14 @@ const setupDatabase = async () => {
     for (const userData of USERS) {
       try {
         // Verificar si el usuario ya existe
-        const existingUser = await User.findOne({
-          where: { 
-            $or: [
-              { email: userData.email },
-              { username: userData.username }
-            ]
-          }
-        });
+        let existingUser = await User.findOne({ where: { email: userData.email } });
+        if (!existingUser) {
+          existingUser = await User.findOne({ where: { username: userData.username } });
+        }
 
         if (!existingUser) {
           console.log(`📝 Creando usuario: ${userData.nombre} (${userData.email})`);
-          
           const hashedPassword = bcrypt.hashSync(userData.password, 8);
-          
           const newUser = await User.create({
             id: userData.id,
             username: userData.username,
@@ -143,17 +138,14 @@ const setupDatabase = async () => {
           console.log(`✅ Usuario ${userData.nombre} creado exitosamente`);
         } else {
           console.log(`✅ Usuario ${userData.nombre} ya existe`);
-          
           // Verificar y actualizar roles si es necesario
           const userRoles = await existingUser.getRoles();
           const currentRoleNames = userRoles.map(role => role.name);
-          
           for (const roleName of userData.roles) {
             if (!currentRoleNames.includes(roleName)) {
               const role = await Role.findOne({
                 where: { name: roleName }
               });
-              
               if (role) {
                 await existingUser.addRole(role);
                 console.log(`  ✅ Rol '${roleName}' agregado a ${userData.nombre}`);
@@ -162,32 +154,15 @@ const setupDatabase = async () => {
           }
         }
       } catch (error) {
-        console.error(`❌ Error al crear/verificar usuario ${userData.nombre}:`, error);
+        console.error(`❌ Error al crear/actualizar usuario ${userData.nombre}:`, error);
       }
     }
-
-    console.log("🎉 Configuración de base de datos completada exitosamente");
-    
-    // Mostrar información de usuarios creados
-    const allUsers = await User.findAll({
-      include: [{
-        model: Role,
-        through: UserRoles,
-        attributes: ['name']
-      }],
-      order: [['id', 'ASC']]
-    });
-
-    console.log("\n📋 Usuarios en el sistema:");
-    allUsers.forEach(user => {
-      const roles = user.roles.map(role => role.name).join(', ');
-      console.log(`- ${user.username} (${user.email}) - Roles: ${roles}`);
-    });
-
+    console.log("✅ Usuarios creados/actualizados");
   } catch (error) {
-    console.error("❌ Error durante la configuración:", error);
-    throw error;
+    console.error("❌ Error en la configuración de la base de datos:", error);
+    process.exit(1);
   }
 };
 
+module.exports = setupDatabase;
 module.exports = { setupDatabase };

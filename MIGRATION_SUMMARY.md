@@ -191,6 +191,7 @@ updateUser(updatedUserData)
 - ✅ **Corregido `user.model.js`**: Asociación con `models.proyectos` en lugar de `models.proyecto`
 - ✅ **Corregido `role.model.js`**: Eliminado campo `description` inexistente
 - ✅ **Actualizado `user.controller.js`**: Todas las referencias corregidas para usar `db.users`, `db.roles`
+- ✅ **Actualizado `calificaciones.controller.js`**: Todas las referencias corregidas para usar `db.users`, `db.proyectos`, `db.calificaciones`
 - ✅ **Solución temporal**: Controlador modificado para obtener datos sin usar includes problemáticos
 - ✅ **Verificación**: El modelo ahora se carga correctamente y funciona sin errores
 
@@ -201,6 +202,7 @@ updateUser(updatedUserData)
 - `app/models/role.model.js`: Eliminado campo description inexistente
 - `app/controllers/project.controller.js`: Solución temporal sin includes problemáticos
 - `app/controllers/user.controller.js`: Todas las referencias corregidas
+- `app/controllers/calificaciones.controller.js`: Todas las referencias corregidas
 - `test-fix.js`: Script de verificación de la corrección
 - `test-associations.js`: Script para probar asociaciones
 - `debug-associations.js`: Script para debuggear asociaciones

@@ -3,8 +3,15 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Directorio para las subidas
-const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+// Directorio para las subidas - usar una ruta que funcione en Render
+let UPLOADS_DIR;
+if (process.env.NODE_ENV === 'production') {
+  // En producción (Render), usar /tmp que es persistente
+  UPLOADS_DIR = "/tmp/uploads";
+} else {
+  // En desarrollo, usar la carpeta local
+  UPLOADS_DIR = path.join(process.cwd(), "uploads");
+}
 
 // Crear el directorio si no existe
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -13,6 +20,9 @@ if (!fs.existsSync(UPLOADS_DIR)) {
     console.log(`📁 Uploads directory created at: ${UPLOADS_DIR}`);
   } catch (err) {
     console.error(`❌ Error creating uploads directory at ${UPLOADS_DIR}:`, err);
+    // Fallback: usar directorio temporal del sistema
+    UPLOADS_DIR = require('os').tmpdir();
+    console.log(`🔄 Using fallback directory: ${UPLOADS_DIR}`);
   }
 } else {
   console.log(`📁 Uploads directory already exists at: ${UPLOADS_DIR}`);
@@ -59,6 +69,7 @@ const upload = multer({
 const projectUploadMiddleware = (req, res, next) => {
   console.log('🚀 Starting project upload middleware...');
   console.log('📋 Expected fields: fichaTecnica, modeloCanva, pdfProyecto');
+  console.log(`📁 Upload directory: ${UPLOADS_DIR}`);
   
   upload.fields([
     { name: "fichaTecnica", maxCount: 1 },
@@ -81,6 +92,13 @@ const projectUploadMiddleware = (req, res, next) => {
         const files = req.files[fieldName];
         files.forEach(file => {
           console.log(`📄 File: ${fieldName} -> ${file.originalname} (${file.path})`);
+          // Verificar que el archivo existe después de la subida
+          if (fs.existsSync(file.path)) {
+            const stats = fs.statSync(file.path);
+            console.log(`📊 File size: ${stats.size} bytes`);
+          } else {
+            console.error(`❌ File not found after upload: ${file.path}`);
+          }
         });
       });
     }
@@ -95,5 +113,6 @@ const singleFileUploadMiddleware = (fieldName) => upload.single(fieldName);
 module.exports = {
   projectUploadMiddleware,
   singleFileUploadMiddleware,
-  upload
+  upload,
+  UPLOADS_DIR // Exportar para uso en otros archivos
 };

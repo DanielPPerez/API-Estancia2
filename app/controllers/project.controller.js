@@ -1,6 +1,7 @@
 const db = require('../models'); 
 const fs = require("fs");
 const path = require("path");
+const { UPLOADS_DIR } = require('../middleware/uploadFiles');
 
 // Obtener referencias a los modelos con nombres correctos
 const Proyecto = db.proyectos;
@@ -265,6 +266,7 @@ exports.downloadProjectFile = async (req, res) => {
   const { projectId, fileType } = req.params; 
 
   console.log(`📥 Solicitud de descarga: Proyecto ${projectId}, Archivo ${fileType}`);
+  console.log(`📁 Upload directory: ${UPLOADS_DIR}`);
 
   try {
     const project = await Proyecto.findByPk(projectId);
@@ -296,7 +298,7 @@ exports.downloadProjectFile = async (req, res) => {
         return res.status(400).send({ message: "Invalid file type." });
     }
 
-    console.log(`📁 Ruta del archivo: ${filePath}`);
+    console.log(`📁 Ruta del archivo en BD: ${filePath}`);
     console.log(`📄 Nombre del archivo: ${fileName}`);
 
     if (!filePath) {
@@ -304,13 +306,31 @@ exports.downloadProjectFile = async (req, res) => {
       return res.status(404).send({ message: `No file path configured for ${fileType}.` });
     }
 
-    if (!fs.existsSync(filePath)) {
-      console.log(`❌ Archivo no existe en la ruta: ${filePath}`);
+    // Verificar si el archivo existe en la ruta absoluta
+    let absolutePath = filePath;
+    if (!path.isAbsolute(filePath)) {
+      // Si la ruta es relativa, construir la ruta absoluta
+      absolutePath = path.join(UPLOADS_DIR, path.basename(filePath));
+    }
+
+    console.log(`📁 Ruta absoluta del archivo: ${absolutePath}`);
+
+    if (!fs.existsSync(absolutePath)) {
+      console.log(`❌ Archivo no existe en la ruta: ${absolutePath}`);
+      
+      // Listar archivos en el directorio de uploads para debugging
+      try {
+        const files = fs.readdirSync(UPLOADS_DIR);
+        console.log(`📄 Archivos disponibles en ${UPLOADS_DIR}:`, files);
+      } catch (error) {
+        console.log(`❌ Error listando archivos: ${error.message}`);
+      }
+      
       return res.status(404).send({ message: "File not found on disk." });
     }
 
     console.log(`✅ Archivo encontrado, iniciando descarga...`);
-    res.download(filePath, fileName);
+    res.download(absolutePath, fileName);
   } catch (error) {
     console.error("❌ Error downloading project file:", error);
     res.status(500).send({ message: "Error downloading file." });

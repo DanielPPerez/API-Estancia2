@@ -10,10 +10,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       unique: true,
     },
-    description: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
   }, {
     timestamps: true, // Agregar createdAt y updatedAt automáticamente
     tableName: 'roles', // Asegurar nombre de tabla
@@ -21,9 +17,9 @@ module.exports = (sequelize, DataTypes) => {
 
   Role.associate = (models) => {
     // Verificar que los modelos existan antes de establecer asociaciones
-    // Usar models.user (singular) ya que ese es el nombre del modelo
-    if (models.user && models.user_roles) {
-      Role.belongsToMany(models.user, {
+    // Usar models.users (plural) ya que ese es el nombre del modelo
+    if (models.users && models.user_roles) {
+      Role.belongsToMany(models.users, {
         through: models.user_roles,
         foreignKey: "roleId",
         otherKey: "userId",

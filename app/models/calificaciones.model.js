@@ -53,15 +53,15 @@ module.exports = (sequelize, Sequelize) => {
       });
     }
 
-    if (models.users) {
+    if (models.user) {
       // Asociación con el evaluador (usuario)
-      Calificaciones.belongsTo(models.users, {
+      Calificaciones.belongsTo(models.user, {
         foreignKey: 'userEvaluadorId',
         as: 'evaluador'
       });
 
       // Asociación con el alumno (usuario)
-      Calificaciones.belongsTo(models.users, {
+      Calificaciones.belongsTo(models.user, {
         foreignKey: 'userAlumnoId',
         as: 'alumno'
       });

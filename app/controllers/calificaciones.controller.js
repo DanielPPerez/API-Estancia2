@@ -4,7 +4,7 @@ const db = require('../models');
 // Obtener referencias a los modelos con nombres correctos
 const Calificaciones = db.calificaciones;
 const Proyecto = db.proyectos;
-const User = db.users;
+const User = db.user;
 
 // Crear una nueva calificación para un proyecto
 exports.createCalificacion = async (req, res) => {
@@ -97,12 +97,12 @@ exports.getAllCalificaciones = async (req, res) => {
           attributes: ['name']
         },
         {
-          model: db.users,
+          model: db.user,
           as: 'evaluador',
           attributes: ['username']
         },
         {
-          model: db.users,
+          model: db.user,
           as: 'alumno',
           attributes: ['username']
         }
@@ -124,7 +124,7 @@ exports.getCalificacionesByProyectoId = async (req, res) => {
       where: { proyectoId },
       include: [
         {
-          model: db.users,
+          model: db.user,
           as: 'evaluador',
           attributes: ['username', 'nombre']
         }
@@ -153,7 +153,7 @@ exports.getCalificacionesByEvaluadorId = async (req, res) => {
           attributes: ['name']
         },
         {
-          model: db.users,
+          model: db.user,
           as: 'alumno',
           attributes: ['username', 'nombre']
         }

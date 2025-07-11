@@ -2,6 +2,52 @@
 const db = require("../models");
 const bcrypt = require("bcryptjs");
 
+// Definir los usuarios que deben existir en el sistema
+const USERS = [
+  // Administradora
+  {
+    id: 1,
+    email: 'cmadariaga@upchiapas.edu.mx',
+    username: 'Claudia Madariaga',
+    nombre: 'Claudia Madariaga',
+    password: 'Claudia2025!',
+    roles: ['admin', 'moderator', 'user', 'evaluador']
+  },
+  // Evaluadores
+  {
+    id: 2,
+    email: 'paniawoah@gmail.com',
+    username: 'Daniel Paniagua',
+    nombre: 'Daniel Paniagua',
+    password: 'Daniel2025!',
+    roles: ['evaluador', 'user']
+  },
+  {
+    id: 3,
+    email: 'roberto.borges@seyt.gob.mx',
+    username: 'Roberto Borges',
+    nombre: 'Roberto Borges',
+    password: 'Roberto2025!',
+    roles: ['evaluador', 'user']
+  },
+  {
+    id: 4,
+    email: 'capacitaeconomia@gmail.com',
+    username: 'Mauricio Camacho',
+    nombre: 'Mauricio Camacho',
+    password: 'Mauricio2025!',
+    roles: ['evaluador', 'user']
+  },
+  {
+    id: 5,
+    email: 'dpedrero@hotmail.com',
+    username: 'Damian Pedrero',
+    nombre: 'Damian Pedrero',
+    password: 'Damian2025!',
+    roles: ['evaluador', 'user']
+  }
+];
+
 const setupDatabase = async () => {
   try {
     console.log("🔄 Iniciando configuración de la base de datos...");
@@ -49,76 +95,75 @@ const setupDatabase = async () => {
     }
     console.log("✅ Roles creados/verificados");
 
-    // 3. Crear usuario administrador por defecto si no existe
-    const adminUser = await User.findOne({
-      where: { username: 'admin' }
-    });
+    // 3. Crear usuarios específicos del sistema
+    console.log("🔧 Verificando y creando usuarios del sistema...");
+    
+    for (const userData of USERS) {
+      try {
+        // Verificar si el usuario ya existe
+        const existingUser = await User.findOne({
+          where: { 
+            $or: [
+              { email: userData.email },
+              { username: userData.username }
+            ]
+          }
+        });
 
-    if (!adminUser) {
-      console.log("🔧 Creando usuario administrador por defecto...");
-      
-      const hashedPassword = bcrypt.hashSync('admin123', 8);
-      
-      const newAdmin = await User.create({
-        username: 'admin',
-        email: 'admin@upchiapas.edu.mx',
-        password: hashedPassword,
-        nombre: 'Administrador',
-        carrera: 'Sistemas',
-        cuatrimestre: '8',
-        categoria: 'Emprendimiento'
-      });
+        if (!existingUser) {
+          console.log(`📝 Creando usuario: ${userData.nombre} (${userData.email})`);
+          
+          const hashedPassword = bcrypt.hashSync(userData.password, 8);
+          
+          const newUser = await User.create({
+            id: userData.id,
+            username: userData.username,
+            email: userData.email,
+            password: hashedPassword,
+            nombre: userData.nombre,
+            carrera: 'Sistemas',
+            cuatrimestre: '8',
+            categoria: 'Emprendimiento'
+          });
 
-      // Asignar rol de administrador
-      const adminRole = await Role.findOne({
-        where: { name: 'admin' }
-      });
+          // Asignar roles al usuario
+          for (const roleName of userData.roles) {
+            const role = await Role.findOne({
+              where: { name: roleName }
+            });
 
-      if (adminRole) {
-        // Usar addRole en lugar de setRoles
-        await newAdmin.addRole(adminRole);
-        console.log("✅ Usuario administrador creado con rol 'admin'");
-      } else {
-        console.error("❌ Error: No se encontró el rol 'admin'");
+            if (role) {
+              await newUser.addRole(role);
+              console.log(`  ✅ Rol '${roleName}' asignado a ${userData.nombre}`);
+            } else {
+              console.error(`  ❌ Error: No se encontró el rol '${roleName}'`);
+            }
+          }
+
+          console.log(`✅ Usuario ${userData.nombre} creado exitosamente`);
+        } else {
+          console.log(`✅ Usuario ${userData.nombre} ya existe`);
+          
+          // Verificar y actualizar roles si es necesario
+          const userRoles = await existingUser.getRoles();
+          const currentRoleNames = userRoles.map(role => role.name);
+          
+          for (const roleName of userData.roles) {
+            if (!currentRoleNames.includes(roleName)) {
+              const role = await Role.findOne({
+                where: { name: roleName }
+              });
+              
+              if (role) {
+                await existingUser.addRole(role);
+                console.log(`  ✅ Rol '${roleName}' agregado a ${userData.nombre}`);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Error al crear/verificar usuario ${userData.nombre}:`, error);
       }
-    } else {
-      console.log("✅ Usuario administrador ya existe");
-    }
-
-    // 4. Crear usuario evaluador por defecto si no existe
-    const evaluadorUser = await User.findOne({
-      where: { username: 'evaluador' }
-    });
-
-    if (!evaluadorUser) {
-      console.log("🔧 Creando usuario evaluador por defecto...");
-      
-      const hashedPassword = bcrypt.hashSync('evaluador123', 8);
-      
-      const newEvaluador = await User.create({
-        username: 'evaluador',
-        email: 'evaluador@upchiapas.edu.mx',
-        password: hashedPassword,
-        nombre: 'Evaluador',
-        carrera: 'Sistemas',
-        cuatrimestre: '8',
-        categoria: 'Emprendimiento'
-      });
-
-      // Asignar rol de evaluador
-      const evaluadorRole = await Role.findOne({
-        where: { name: 'evaluador' }
-      });
-
-      if (evaluadorRole) {
-        // Usar addRole en lugar de setRoles
-        await newEvaluador.addRole(evaluadorRole);
-        console.log("✅ Usuario evaluador creado con rol 'evaluador'");
-      } else {
-        console.error("❌ Error: No se encontró el rol 'evaluador'");
-      }
-    } else {
-      console.log("✅ Usuario evaluador ya existe");
     }
 
     console.log("🎉 Configuración de base de datos completada exitosamente");
@@ -129,7 +174,8 @@ const setupDatabase = async () => {
         model: Role,
         through: UserRoles,
         attributes: ['name']
-      }]
+      }],
+      order: [['id', 'ASC']]
     });
 
     console.log("\n📋 Usuarios en el sistema:");

@@ -4,7 +4,7 @@ const path = require("path");
 
 // Obtener referencias a los modelos con nombres correctos
 const Proyecto = db.proyectos;
-const User = db.users;
+const User = db.user;
 const Role = db.roles;
 const UserRoles = db.user_roles;
 
@@ -17,9 +17,17 @@ exports.createProject = async (req, res) => {
     return res.status(400).send({ message: "User ID and Project Name are required." });
   }
 
+  console.log('📁 Archivos recibidos:', req.files);
+  console.log('📝 Datos del body:', req.body);
+
   const fichaTecnicaPath = req.files && req.files['fichaTecnica'] ? req.files['fichaTecnica'][0].path : null;
   const modeloCanvaPath = req.files && req.files['modeloCanva'] ? req.files['modeloCanva'][0].path : null;
   const pdfProyectoPath = req.files && req.files['pdfProyecto'] ? req.files['pdfProyecto'][0].path : null;
+
+  console.log('📂 Rutas de archivos:');
+  console.log('Ficha técnica:', fichaTecnicaPath);
+  console.log('Modelo Canva:', modeloCanvaPath);
+  console.log('PDF Proyecto:', pdfProyectoPath);
 
   // Determinar estatus automáticamente
   let estatus = 'no subido';
@@ -39,9 +47,11 @@ exports.createProject = async (req, res) => {
       estatus
     });
     
+    console.log('✅ Proyecto creado exitosamente:', project.id);
     res.status(201).send({ id: project.id, message: "Project created successfully!", estatus });
   } catch (error) {
     console.error("Error creating project:", error);
+    // Limpiar archivos si hay error
     if (fichaTecnicaPath && fs.existsSync(fichaTecnicaPath)) fs.unlinkSync(fichaTecnicaPath);
     if (modeloCanvaPath && fs.existsSync(modeloCanvaPath)) fs.unlinkSync(modeloCanvaPath);
     if (pdfProyectoPath && fs.existsSync(pdfProyectoPath)) fs.unlinkSync(pdfProyectoPath);
@@ -60,7 +70,7 @@ exports.getAllProjects = async (req, res) => {
     // Si hay proyectos, obtener información de usuarios por separado
     if (projects.length > 0) {
       const userIds = [...new Set(projects.map(p => p.idUser))];
-      const users = await db.users.findAll({
+      const users = await db.user.findAll({
         where: { id: userIds },
         attributes: ['id', 'username', 'nombre', 'categoria']
       });
@@ -80,7 +90,7 @@ exports.getAllProjects = async (req, res) => {
       
       res.status(200).send(projectsWithUsers);
     } else {
-    res.status(200).send(projects);
+      res.status(200).send(projects);
     }
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -99,7 +109,7 @@ exports.getProjectById = async (req, res) => {
     }
     
     // Obtener información del usuario por separado
-    const user = await db.users.findByPk(project.idUser, {
+    const user = await db.user.findByPk(project.idUser, {
       attributes: ['username', 'nombre', 'email']
     });
     
@@ -117,7 +127,7 @@ exports.getProjectById = async (req, res) => {
 exports.getProjectsByUserId = async (req, res) => {
   const { userId } = req.params;
   try {
-    const user = await db.users.findByPk(userId, {
+    const user = await db.user.findByPk(userId, {
       attributes: ['id', 'username', 'categoria', 'carrera'],
       include: [{
         model: db.proyectos,
@@ -153,7 +163,7 @@ exports.updateProject = async (req, res) => {
     // Autorización: solo el dueño o un admin puede editar
     if (project.idUser !== userId) {
       // Verificar si el usuario es admin
-      const user = await db.users.findByPk(userId, {
+      const user = await db.user.findByPk(userId, {
         include: [{
           model: db.roles,
           through: db.user_roles,
@@ -164,9 +174,9 @@ exports.updateProject = async (req, res) => {
       if (!user || user.roles.length === 0) {
         return res.status(403).send({ message: "Forbidden: You are not authorized to update this project." });
       }
-  }
+    }
 
-  // Manejo de archivos: si se suben nuevos, usar esas rutas, sino mantener las antiguas
+    // Manejo de archivos: si se suben nuevos, usar esas rutas, sino mantener las antiguas
     const fichaTecnicaPath = req.files && req.files['fichaTecnica'] ? req.files['fichaTecnica'][0].path : project.technicalSheet;
     const modeloCanvaPath = req.files && req.files['modeloCanva'] ? req.files['modeloCanva'][0].path : project.canvaModel;
     const pdfProyectoPath = req.files && req.files['pdfProyecto'] ? req.files['pdfProyecto'][0].path : project.projectPdf;
@@ -177,14 +187,14 @@ exports.updateProject = async (req, res) => {
     if (videoPitch !== undefined) updateData.videoLink = videoPitch;
     if (estatus !== undefined) updateData.estatus = estatus;
   
-  // Si se subió un nuevo archivo, la ruta ya está en la variable correspondiente
+    // Si se subió un nuevo archivo, la ruta ya está en la variable correspondiente
     if (req.files && req.files['fichaTecnica']) updateData.technicalSheet = fichaTecnicaPath;
     if (req.files && req.files['modeloCanva']) updateData.canvaModel = modeloCanvaPath;
     if (req.files && req.files['pdfProyecto']) updateData.projectPdf = pdfProyectoPath;
   
     if (Object.keys(updateData).length === 0) {
-    return res.status(400).send({ message: "No fields to update provided." });
-  }
+      return res.status(400).send({ message: "No fields to update provided." });
+    }
 
     await project.update(updateData);
 
@@ -218,7 +228,7 @@ exports.deleteProject = async (req, res) => {
 
     // Autorización: solo el dueño o un admin puede eliminar
     if (project.idUser !== userId) {
-      const user = await db.users.findByPk(userId, {
+      const user = await db.user.findByPk(userId, {
         include: [{
           model: db.roles,
           through: db.user_roles,
@@ -252,7 +262,7 @@ exports.deleteProject = async (req, res) => {
 
 // Descargar archivo de proyecto
 exports.downloadProjectFile = async (req, res) => {
-    const { projectId, fileType } = req.params; 
+  const { projectId, fileType } = req.params; 
 
   try {
     const project = await Proyecto.findByPk(projectId);
@@ -267,26 +277,26 @@ exports.downloadProjectFile = async (req, res) => {
       case 'technicalSheet':
         filePath = project.technicalSheet;
         fileName = `ficha_tecnica_${project.name}.pdf`;
-            break;
+        break;
       case 'canvaModel':
         filePath = project.canvaModel;
         fileName = `modelo_canvas_${project.name}.pdf`;
-            break;
+        break;
       case 'projectPdf':
         filePath = project.projectPdf;
         fileName = `proyecto_${project.name}.pdf`;
-            break;
-        default:
+        break;
+      default:
         return res.status(400).send({ message: "Invalid file type." });
     }
 
     if (!filePath || !fs.existsSync(filePath)) {
       return res.status(404).send({ message: "File not found." });
-        }
+    }
 
     res.download(filePath, fileName);
   } catch (error) {
     console.error("Error downloading project file:", error);
     res.status(500).send({ message: "Error downloading file." });
-    }
+  }
 };

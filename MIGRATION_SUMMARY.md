@@ -185,6 +185,7 @@ updateUser(updatedUserData)
 
 ### Solución:
 - ✅ **Corregido `app/models/index.js`**: Agregado alias `db.projects = db.proyectos`
+- ✅ **Corregido `app/models/index.js`**: Agregado alias `db.users = db.user` y `db.roles = db.role`
 - ✅ **Actualizado `project.controller.js`**: Usa `db.proyectos` directamente
 - ✅ **Corregido `proyecto.model.js`**: Asociación con `models.users` en lugar de `models.user`
 - ✅ **Corregido `user.model.js`**: Asociación con `models.proyectos` en lugar de `models.proyecto`
@@ -194,7 +195,7 @@ updateUser(updatedUserData)
 - ✅ **Verificación**: El modelo ahora se carga correctamente y funciona sin errores
 
 ### Archivos Modificados:
-- `app/models/index.js`: Agregado alias para compatibilidad
+- `app/models/index.js`: Agregado alias para compatibilidad (users, roles, projects)
 - `app/models/proyecto.model.js`: Corregida asociación con modelo users
 - `app/models/user.model.js`: Corregida asociación con modelo proyectos
 - `app/models/role.model.js`: Eliminado campo description inexistente
@@ -203,5 +204,6 @@ updateUser(updatedUserData)
 - `test-fix.js`: Script de verificación de la corrección
 - `test-associations.js`: Script para probar asociaciones
 - `debug-associations.js`: Script para debuggear asociaciones
+- `debug-users.js`: Script para debuggear modelo de usuarios
 
 El sistema ahora está completamente migrado y debería funcionar sin errores. 

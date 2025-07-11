@@ -65,9 +65,14 @@ if (db.roles && !db.role) {
   console.log("🔄 Alias creado: db.role = db.roles");
 }
 
-if (db.users && !db.user) {
-  db.user = db.users;
-  console.log("🔄 Alias creado: db.user = db.users");
+if (db.user && !db.users) {
+  db.users = db.user;
+  console.log("🔄 Alias creado: db.users = db.user");
+}
+
+if (db.role && !db.roles) {
+  db.roles = db.role;
+  console.log("🔄 Alias creado: db.roles = db.role");
 }
 
 if (db.proyectos && !db.proyecto) {

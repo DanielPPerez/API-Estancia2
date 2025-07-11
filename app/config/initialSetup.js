@@ -111,7 +111,6 @@ const setupDatabase = async () => {
           console.log(`📝 Creando usuario: ${userData.nombre} (${userData.email})`);
           const hashedPassword = bcrypt.hashSync(userData.password, 8);
           const newUser = await User.create({
-            id: userData.id,
             username: userData.username,
             email: userData.email,
             password: hashedPassword,

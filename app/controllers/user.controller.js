@@ -97,10 +97,10 @@ exports.updateUser = async (req, res) => {
     if (cuatrimestre) updateData.cuatrimestre = cuatrimestre;
     if (categoria) updateData.categoria = categoria;
     if (password) updateData.password = bcrypt.hashSync(password, 8);
-
+  
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).send({ message: "No fields to update provided." });
-    }
+    return res.status(400).send({ message: "No fields to update provided." });
+  }
 
     await user.update(updateData);
     res.status(200).send({ message: "User updated successfully." });

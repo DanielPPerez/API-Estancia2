@@ -90,7 +90,7 @@ exports.getAllProjects = async (req, res) => {
       
       res.status(200).send(projectsWithUsers);
     } else {
-      res.status(200).send(projects);
+    res.status(200).send(projects);
     }
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -174,9 +174,9 @@ exports.updateProject = async (req, res) => {
       if (!user || user.roles.length === 0) {
         return res.status(403).send({ message: "Forbidden: You are not authorized to update this project." });
       }
-    }
+  }
 
-    // Manejo de archivos: si se suben nuevos, usar esas rutas, sino mantener las antiguas
+  // Manejo de archivos: si se suben nuevos, usar esas rutas, sino mantener las antiguas
     const fichaTecnicaPath = req.files && req.files['fichaTecnica'] ? req.files['fichaTecnica'][0].path : project.technicalSheet;
     const modeloCanvaPath = req.files && req.files['modeloCanva'] ? req.files['modeloCanva'][0].path : project.canvaModel;
     const pdfProyectoPath = req.files && req.files['pdfProyecto'] ? req.files['pdfProyecto'][0].path : project.projectPdf;
@@ -187,14 +187,14 @@ exports.updateProject = async (req, res) => {
     if (videoPitch !== undefined) updateData.videoLink = videoPitch;
     if (estatus !== undefined) updateData.estatus = estatus;
   
-    // Si se subió un nuevo archivo, la ruta ya está en la variable correspondiente
+  // Si se subió un nuevo archivo, la ruta ya está en la variable correspondiente
     if (req.files && req.files['fichaTecnica']) updateData.technicalSheet = fichaTecnicaPath;
     if (req.files && req.files['modeloCanva']) updateData.canvaModel = modeloCanvaPath;
     if (req.files && req.files['pdfProyecto']) updateData.projectPdf = pdfProyectoPath;
   
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).send({ message: "No fields to update provided." });
-    }
+    return res.status(400).send({ message: "No fields to update provided." });
+  }
 
     await project.update(updateData);
 
@@ -264,11 +264,16 @@ exports.deleteProject = async (req, res) => {
 exports.downloadProjectFile = async (req, res) => {
   const { projectId, fileType } = req.params; 
 
+  console.log(`📥 Solicitud de descarga: Proyecto ${projectId}, Archivo ${fileType}`);
+
   try {
     const project = await Proyecto.findByPk(projectId);
     if (!project) {
+      console.log(`❌ Proyecto ${projectId} no encontrado`);
       return res.status(404).send({ message: "Project not found." });
     }
+
+    console.log(`✅ Proyecto encontrado: "${project.name}"`);
 
     let filePath = null;
     let fileName = '';
@@ -287,16 +292,27 @@ exports.downloadProjectFile = async (req, res) => {
         fileName = `proyecto_${project.name}.pdf`;
         break;
       default:
+        console.log(`❌ Tipo de archivo inválido: ${fileType}`);
         return res.status(400).send({ message: "Invalid file type." });
     }
 
-    if (!filePath || !fs.existsSync(filePath)) {
-      return res.status(404).send({ message: "File not found." });
+    console.log(`📁 Ruta del archivo: ${filePath}`);
+    console.log(`📄 Nombre del archivo: ${fileName}`);
+
+    if (!filePath) {
+      console.log(`❌ No hay ruta configurada para ${fileType}`);
+      return res.status(404).send({ message: `No file path configured for ${fileType}.` });
     }
 
+    if (!fs.existsSync(filePath)) {
+      console.log(`❌ Archivo no existe en la ruta: ${filePath}`);
+      return res.status(404).send({ message: "File not found on disk." });
+    }
+
+    console.log(`✅ Archivo encontrado, iniciando descarga...`);
     res.download(filePath, fileName);
   } catch (error) {
-    console.error("Error downloading project file:", error);
+    console.error("❌ Error downloading project file:", error);
     res.status(500).send({ message: "Error downloading file." });
   }
 };

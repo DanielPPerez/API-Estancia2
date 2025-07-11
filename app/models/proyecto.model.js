@@ -41,7 +41,7 @@ module.exports = (sequelize, Sequelize) => {
     // Verificar que el modelo user exista antes de establecer asociaciones
     if (models.user) {
     // Asociación muchos a uno con User
-      Proyecto.belongsTo(models.user, {
+    Proyecto.belongsTo(models.user, {
       foreignKey: "idUser",
       as: "user",
     });

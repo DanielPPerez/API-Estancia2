@@ -61,7 +61,7 @@ exports.createCalificacion = async (req, res) => {
     });
     
     if (existingCalificacion) {
-      return res.status(409).send({ message: "You have already submitted a grade for this project." });
+        return res.status(409).send({ message: "You have already submitted a grade for this project." });
     }
 
     // 3. Insertar la calificación
@@ -74,7 +74,7 @@ exports.createCalificacion = async (req, res) => {
       tecnica: tecnica !== undefined ? parseFloat(tecnica) : null,
       financiera: financiera !== undefined ? parseFloat(financiera) : null,
       pitch: pitch !== undefined ? parseFloat(pitch) : null,
-      observaciones,
+        observaciones,
       total: finalTotal,
     });
 
@@ -141,9 +141,9 @@ exports.getCalificacionesByProyectoId = async (req, res) => {
 
 // Obtener calificaciones hechas por un evaluador específico
 exports.getCalificacionesByEvaluadorId = async (req, res) => {
-  const evaluadorId = req.params.evaluadorId || req.userId; // Si :evaluadorId está en la ruta o es el propio user
+    const evaluadorId = req.params.evaluadorId || req.userId; // Si :evaluadorId está en la ruta o es el propio user
 
-  try {
+    try {
     const calificaciones = await db.calificaciones.findAll({
       where: { userEvaluadorId: evaluadorId },
       include: [
@@ -160,11 +160,11 @@ exports.getCalificacionesByEvaluadorId = async (req, res) => {
       ],
       order: [['createdAt', 'DESC']]
     });
-    res.status(200).send(calificaciones);
-  } catch (error) {
-    console.error(`Error fetching calificaciones by evaluator ${evaluadorId}:`, error);
-    res.status(500).send({ message: error.message || "Failed to retrieve calificaciones by evaluator." });
-  }
+        res.status(200).send(calificaciones);
+    } catch (error) {
+        console.error(`Error fetching calificaciones by evaluator ${evaluadorId}:`, error);
+        res.status(500).send({ message: error.message || "Failed to retrieve calificaciones by evaluator." });
+    }
 };
 
 // Actualizar una calificación (cualquier evaluador o admin)
@@ -221,7 +221,7 @@ exports.updateCalificacion = async (req, res) => {
       
       if (!editor || editor.roles.length === 0) {
         return res.status(403).send({ message: "Forbidden: You are not authorized to update this calificación." });
-      }
+    }
     }
 
     // Preparar datos de actualización
@@ -233,7 +233,7 @@ exports.updateCalificacion = async (req, res) => {
     if (pitch !== undefined) updateData.pitch = parseFloat(pitch);
     if (observaciones !== undefined) updateData.observaciones = observaciones;
     if (finalTotal !== undefined) updateData.total = finalTotal;
-
+    
     if (Object.keys(updateData).length === 0) {
       return res.status(400).send({ message: "No fields to update provided." });
     }
@@ -249,7 +249,7 @@ exports.updateCalificacion = async (req, res) => {
 
 // Eliminar una calificación (solo el evaluador que la creó o admin)
 exports.deleteCalificacion = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; 
   const deleterId = req.userId;
 
   try {
@@ -271,7 +271,7 @@ exports.deleteCalificacion = async (req, res) => {
       
       if (!deleter || deleter.roles.length === 0) {
         return res.status(403).send({ message: "Forbidden: You are not authorized to delete this calificación." });
-      }
+    }
     }
 
     await calificacion.destroy();

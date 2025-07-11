@@ -20,10 +20,10 @@ module.exports = (sequelize, DataTypes) => {
     // Usar models.users (plural) ya que ese es el nombre del modelo
     if (models.users && models.user_roles) {
       Role.belongsToMany(models.users, {
-        through: models.user_roles,
-        foreignKey: "roleId",
-        otherKey: "userId",
-      });
+      through: models.user_roles,
+      foreignKey: "roleId",
+      otherKey: "userId",
+    });
     }
   };
 

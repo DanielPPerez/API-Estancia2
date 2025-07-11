@@ -80,7 +80,7 @@ exports.getAllProjects = async (req, res) => {
       
       res.status(200).send(projectsWithUsers);
     } else {
-      res.status(200).send(projects);
+    res.status(200).send(projects);
     }
   } catch (error) {
     console.error("Error fetching projects:", error);

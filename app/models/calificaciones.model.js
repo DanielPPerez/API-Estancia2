@@ -45,23 +45,23 @@ module.exports = (sequelize, Sequelize) => {
 
   Calificaciones.associate = (models) => {
     // Verificar que los modelos existan antes de establecer asociaciones
-    if (models.proyecto) {
+    if (models.proyectos) {
       // Asociación con el proyecto
-      Calificaciones.belongsTo(models.proyecto, {
+      Calificaciones.belongsTo(models.proyectos, {
         foreignKey: 'proyectoId',
         as: 'proyecto'
       });
     }
 
-    if (models.user) {
+    if (models.users) {
       // Asociación con el evaluador (usuario)
-      Calificaciones.belongsTo(models.user, {
+      Calificaciones.belongsTo(models.users, {
         foreignKey: 'userEvaluadorId',
         as: 'evaluador'
       });
 
       // Asociación con el alumno (usuario)
-      Calificaciones.belongsTo(models.user, {
+      Calificaciones.belongsTo(models.users, {
         foreignKey: 'userAlumnoId',
         as: 'alumno'
       });

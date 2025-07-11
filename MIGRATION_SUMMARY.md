@@ -192,6 +192,7 @@ updateUser(updatedUserData)
 - ✅ **Corregido `role.model.js`**: Eliminado campo `description` inexistente
 - ✅ **Actualizado `user.controller.js`**: Todas las referencias corregidas para usar `db.users`, `db.roles`
 - ✅ **Actualizado `calificaciones.controller.js`**: Todas las referencias corregidas para usar `db.users`, `db.proyectos`, `db.calificaciones`
+- ✅ **Corregido `calificaciones.model.js`**: Asociaciones con `models.proyectos` y `models.users` en lugar de `models.proyecto` y `models.user`
 - ✅ **Solución temporal**: Controlador modificado para obtener datos sin usar includes problemáticos
 - ✅ **Verificación**: El modelo ahora se carga correctamente y funciona sin errores
 
@@ -203,9 +204,11 @@ updateUser(updatedUserData)
 - `app/controllers/project.controller.js`: Solución temporal sin includes problemáticos
 - `app/controllers/user.controller.js`: Todas las referencias corregidas
 - `app/controllers/calificaciones.controller.js`: Todas las referencias corregidas
+- `app/models/calificaciones.model.js`: Asociaciones corregidas con modelos correctos
 - `test-fix.js`: Script de verificación de la corrección
 - `test-associations.js`: Script para probar asociaciones
 - `debug-associations.js`: Script para debuggear asociaciones
 - `debug-users.js`: Script para debuggear modelo de usuarios
+- `debug-calificaciones.js`: Script para debuggear modelo de calificaciones
 
 El sistema ahora está completamente migrado y debería funcionar sin errores. 

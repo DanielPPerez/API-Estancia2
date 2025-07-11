@@ -8,10 +8,19 @@ const db = require("./app/models");
 const { setupDatabase } = require('./app/config/initialSetup.js');
 
 // --- Configuración de CORS ---
-// Es una buena práctica leer los orígenes permitidos desde las variables de entorno
-const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS 
-  ? process.env.CORS_ALLOWED_ORIGINS.split(',') 
-  : ["http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:5173"]; // Añade aquí la URL de tu frontend en Render cuando la tengas
+// Configuración de CORS para desarrollo y producción
+const allowedOrigins = [
+  'https://feriadeinnovacion.netlify.app', // Frontend en producción (Netlify)
+  'http://localhost:5173', // Desarrollo local
+  'http://localhost:8080', // Puerto alternativo para desarrollo
+  'http://127.0.0.1:5173' // IP local para desarrollo
+];
+
+// Si hay variables de entorno configuradas, las usamos
+if (process.env.CORS_ALLOWED_ORIGINS) {
+  const envOrigins = process.env.CORS_ALLOWED_ORIGINS.split(',');
+  allowedOrigins.push(...envOrigins);
+}
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -19,11 +28,15 @@ const corsOptions = {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log(`🚫 CORS bloqueado para origen: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true,
+  credentials: true, // Necesario para autenticación con cookies/tokens
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos HTTP permitidos
+  allowedHeaders: ['Content-Type', 'x-access-token', 'Authorization'] // Headers permitidos
 };
+
 app.use(cors(corsOptions));
 
 // --- Middlewares ---

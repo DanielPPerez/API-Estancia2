@@ -283,15 +283,15 @@ exports.downloadProjectFile = async (req, res) => {
     switch (fileType) {
       case 'technicalSheet':
         filePath = project.technicalSheet;
-        fileName = `ficha_tecnica_${project.name}.pdf`;
+        fileName = `ficha_tecnica_${project.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
         break;
       case 'canvaModel':
         filePath = project.canvaModel;
-        fileName = `modelo_canvas_${project.name}.pdf`;
+        fileName = `modelo_canvas_${project.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
         break;
       case 'projectPdf':
         filePath = project.projectPdf;
-        fileName = `proyecto_${project.name}.pdf`;
+        fileName = `proyecto_${project.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
         break;
       default:
         console.log(`❌ Tipo de archivo inválido: ${fileType}`);
@@ -306,30 +306,72 @@ exports.downloadProjectFile = async (req, res) => {
       return res.status(404).send({ message: `No file path configured for ${fileType}.` });
     }
 
-    // Verificar si el archivo existe en la ruta absoluta
-    let absolutePath = filePath;
-    if (!path.isAbsolute(filePath)) {
-      // Si la ruta es relativa, construir la ruta absoluta
-      absolutePath = path.join(UPLOADS_DIR, path.basename(filePath));
+    // Estrategia mejorada para encontrar el archivo
+    let absolutePath = null;
+    
+    // Opción 1: Verificar si la ruta absoluta existe
+    if (path.isAbsolute(filePath) && fs.existsSync(filePath)) {
+      absolutePath = filePath;
+      console.log(`✅ Archivo encontrado en ruta absoluta: ${absolutePath}`);
     }
-
-    console.log(`📁 Ruta absoluta del archivo: ${absolutePath}`);
-
-    if (!fs.existsSync(absolutePath)) {
-      console.log(`❌ Archivo no existe en la ruta: ${absolutePath}`);
+    // Opción 2: Buscar por nombre de archivo en el directorio de uploads
+    else {
+      const fileNameFromPath = path.basename(filePath);
+      const uploadsPath = path.join(UPLOADS_DIR, fileNameFromPath);
       
-      // Listar archivos en el directorio de uploads para debugging
-      try {
-        const files = fs.readdirSync(UPLOADS_DIR);
-        console.log(`📄 Archivos disponibles en ${UPLOADS_DIR}:`, files);
-      } catch (error) {
-        console.log(`❌ Error listando archivos: ${error.message}`);
+      if (fs.existsSync(uploadsPath)) {
+        absolutePath = uploadsPath;
+        console.log(`✅ Archivo encontrado en uploads: ${absolutePath}`);
+      } else {
+        console.log(`❌ Archivo no encontrado: ${fileNameFromPath}`);
+        
+        // Opción 3: Buscar archivos similares en el directorio de uploads
+        try {
+          const files = fs.readdirSync(UPLOADS_DIR);
+          console.log(`📄 Archivos disponibles en ${UPLOADS_DIR}:`, files);
+          
+          // Buscar archivos que coincidan con el tipo de archivo
+          const fileTypePatterns = {
+            'technicalSheet': ['ficha', 'technical', 'sheet'],
+            'canvaModel': ['canva', 'canvas', 'model'],
+            'projectPdf': ['proyecto', 'project', 'pdf', 'resumen']
+          };
+          
+          const patterns = fileTypePatterns[fileType] || [];
+          const matchingFiles = files.filter(file => 
+            patterns.some(pattern => file.toLowerCase().includes(pattern))
+          );
+          
+          if (matchingFiles.length > 0) {
+            absolutePath = path.join(UPLOADS_DIR, matchingFiles[0]);
+            console.log(`✅ Usando archivo similar: ${matchingFiles[0]}`);
+          } else {
+            console.log(`❌ No se encontraron archivos similares para ${fileType}`);
+          }
+        } catch (error) {
+          console.log(`❌ Error listando archivos: ${error.message}`);
+        }
       }
-      
-      return res.status(404).send({ message: "File not found on disk." });
     }
 
-    console.log(`✅ Archivo encontrado, iniciando descarga...`);
+    if (!absolutePath || !fs.existsSync(absolutePath)) {
+      console.log(`❌ No se pudo encontrar el archivo para ${fileType}`);
+      return res.status(404).send({ 
+        message: "File not found on disk.",
+        details: `Could not locate ${fileType} for project ${projectId}`
+      });
+    }
+
+    console.log(`✅ Archivo encontrado, iniciando descarga: ${absolutePath}`);
+    
+    // Verificar que el archivo es legible
+    try {
+      fs.accessSync(absolutePath, fs.constants.R_OK);
+    } catch (error) {
+      console.error(`❌ Archivo no es legible: ${absolutePath}`);
+      return res.status(500).send({ message: "File is not readable." });
+    }
+    
     res.download(absolutePath, fileName);
   } catch (error) {
     console.error("❌ Error downloading project file:", error);

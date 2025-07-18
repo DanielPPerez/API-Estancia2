@@ -3,6 +3,18 @@ const express = require("express");
 const cors = require("cors");
 require('dotenv').config();
 
+
+// --- INICIO: DIAGNÓSTICO DE VARIABLES DE ENTORNO ---
+console.log("==========================================");
+console.log("   Checking Environment Variables on Start  ");
+console.log("==========================================");
+console.log(`CLOUDINARY_CLOUD_NAME: ${process.env.CLOUDINARY_CLOUD_NAME}`);
+console.log(`CLOUDINARY_API_KEY is set: ${!!process.env.CLOUDINARY_API_KEY}`);
+// NUNCA muestres el API SECRET en los logs. Solo verifica si existe.
+console.log(`CLOUDINARY_API_SECRET is set: ${!!process.env.CLOUDINARY_API_SECRET}`);
+console.log("==========================================");
+// --- FIN: DIAGNÓSTICO ---
+
 const app = express();
 const db = require("./app/models");
 const { setupDatabase } = require('./app/config/initialSetup.js');
@@ -21,6 +33,7 @@ if (process.env.CORS_ALLOWED_ORIGINS) {
   const envOrigins = process.env.CORS_ALLOWED_ORIGINS.split(',');
   allowedOrigins.push(...envOrigins);
 }
+
 
 const corsOptions = {
   origin: function (origin, callback) {

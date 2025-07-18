@@ -4,14 +4,7 @@ const path = require("path");
 const fs = require("fs");
 
 // Directorio para las subidas - usar una ruta que funcione en Render
-let UPLOADS_DIR;
-if (process.env.NODE_ENV === 'production') {
-  // En producción (Render), usar /tmp que es persistente
-  UPLOADS_DIR = "/tmp/uploads";
-} else {
-  // En desarrollo, usar la carpeta local
-  UPLOADS_DIR = path.join(process.cwd(), "uploads");
-}
+let UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
 
 // Crear el directorio si no existe
 if (!fs.existsSync(UPLOADS_DIR)) {

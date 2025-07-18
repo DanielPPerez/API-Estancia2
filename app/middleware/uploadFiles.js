@@ -1,45 +1,22 @@
-// middleware/uploadFiles.js
+// middleware/uploadFiles.js (Versión para Cloudinary)
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const cloudinary = require("cloudinary").v2;
+const streamifier = require('streamifier');
 
-// Directorio para las subidas - usar una ruta que funcione en Render
-let UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
-
-// Crear el directorio si no existe
-if (!fs.existsSync(UPLOADS_DIR)) {
-  try {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    console.log(`📁 Uploads directory created at: ${UPLOADS_DIR}`);
-  } catch (err) {
-    console.error(`❌ Error creating uploads directory at ${UPLOADS_DIR}:`, err);
-    // Fallback: usar directorio temporal del sistema
-    UPLOADS_DIR = require('os').tmpdir();
-    console.log(`🔄 Using fallback directory: ${UPLOADS_DIR}`);
-  }
-} else {
-  console.log(`📁 Uploads directory already exists at: ${UPLOADS_DIR}`);
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    console.log(`📂 Saving file: ${file.originalname} to ${UPLOADS_DIR}`);
-    cb(null, UPLOADS_DIR);
-  },
-  filename: function (req, file, cb) {
-    // Usar un nombre de archivo más único para evitar colisiones
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const extension = path.extname(file.originalname);
-    const filename = file.fieldname + '-' + uniqueSuffix + extension;
-    console.log(`📝 Generated filename: ${filename}`);
-    cb(null, filename);
-  },
+// --- Configuración de Cloudinary ---
+// El SDK buscará automáticamente las variables de entorno:
+// CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+cloudinary.config({
+  secure: true, // Para que siempre devuelva URLs https
 });
 
+// --- Configuración de Multer ---
+// Ya no usamos diskStorage. Usaremos memoryStorage para mantener el archivo en un buffer.
+const storage = multer.memoryStorage();
+
 const fileFilter = (req, file, cb) => {
-  console.log(`🔍 Checking file: ${file.originalname} (${file.mimetype}) for field: ${file.fieldname}`);
+  console.log(`🔍 Checking file: ${file.originalname} (${file.mimetype})`);
   
-  // Solo aceptar PDF para los campos de proyecto
   if (
     (file.fieldname === 'fichaTecnica' || file.fieldname === 'modeloCanva' || file.fieldname === 'pdfProyecto') &&
     file.mimetype === 'application/pdf'
@@ -47,65 +24,90 @@ const fileFilter = (req, file, cb) => {
     console.log(`✅ File accepted: ${file.originalname}`);
     cb(null, true);
   } else {
-    console.log(`❌ File rejected: ${file.originalname} (${file.mimetype})`);
-    cb(new Error(`Solo se permiten archivos PDF para ${file.fieldname}. Tipo recibido: ${file.mimetype}`), false);
+    console.log(`❌ File rejected: ${file.originalname}`);
+    cb(new Error(`Solo se permiten archivos PDF para ${file.fieldname}.`), false);
   }
 };
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 1024 * 1024 * 25 }, // 25MB
-  fileFilter: fileFilter
+  limits: { fileSize: 1024 * 1024 * 250 }, 
+  fileFilter: fileFilter,
 });
 
-// Middleware para los campos específicos de un proyecto
+// --- Middleware principal de subida ---
+// Este middleware ahora manejará la subida a Cloudinary
 const projectUploadMiddleware = (req, res, next) => {
-  console.log('🚀 Starting project upload middleware...');
-  console.log('📋 Expected fields: fichaTecnica, modeloCanva, pdfProyecto');
-  console.log(`📁 Upload directory: ${UPLOADS_DIR}`);
-  
+  // Primero, usamos el middleware de multer para procesar los campos
   upload.fields([
     { name: "fichaTecnica", maxCount: 1 },
     { name: "modeloCanva", maxCount: 1 },
     { name: "pdfProyecto", maxCount: 1 },
-  ])(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      console.error('❌ Multer error:', err);
-      return res.status(400).json({ message: 'Error de subida de archivos: ' + err.message });
-    } else if (err) {
-      console.error('❌ Upload error:', err);
-      return res.status(400).json({ message: err.message });
+  ])(req, res, async function (err) {
+    if (err) {
+        console.error('❌ Multer/Upload error:', err);
+        return res.status(400).json({ message: err.message });
+    }
+
+    if (!req.files || Object.keys(req.files).length === 0) {
+        console.log('➡️ No files were uploaded, proceeding to next middleware.');
+        return next();
     }
     
-    console.log('✅ Upload middleware completed successfully');
-    console.log('📁 Files received:', req.files ? Object.keys(req.files) : 'No files');
-    
-    if (req.files) {
-      Object.keys(req.files).forEach(fieldName => {
-        const files = req.files[fieldName];
-        files.forEach(file => {
-          console.log(`📄 File: ${fieldName} -> ${file.originalname} (${file.path})`);
-          // Verificar que el archivo existe después de la subida
-          if (fs.existsSync(file.path)) {
-            const stats = fs.statSync(file.path);
-            console.log(`📊 File size: ${stats.size} bytes`);
-          } else {
-            console.error(`❌ File not found after upload: ${file.path}`);
+    console.log('🚀 Uploading files to Cloudinary...');
+
+    // Función para subir un solo archivo desde un buffer
+    const uploadToCloudinary = (file) => {
+      return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            // Para PDFs y otros archivos, es CRUCIAL especificar 'raw'
+            resource_type: "raw", 
+            folder: "proyectos_pdf", // Carpeta en Cloudinary donde se guardarán
+            // Cloudinary usará el nombre original si no especificamos uno
+            public_id: file.originalname.split('.')[0] + '-' + Date.now()
+          },
+          (error, result) => {
+            if (error) {
+              console.error(`❌ Cloudinary upload error for ${file.originalname}:`, error);
+              return reject(error);
+            }
+            console.log(`✅ File ${file.originalname} uploaded to Cloudinary: ${result.secure_url}`);
+            resolve(result);
           }
-        });
+        );
+        // Usamos streamifier para convertir el buffer del archivo en un stream legible
+        streamifier.createReadStream(file.buffer).pipe(uploadStream);
       });
+    };
+
+    try {
+      // Un array para guardar las promesas de subida
+      const uploadPromises = [];
+      
+      // Iteramos sobre los archivos que multer nos dio en req.files
+      for (const fieldName in req.files) {
+        const files = req.files[fieldName];
+        for (const file of files) {
+          uploadPromises.push(uploadToCloudinary(file));
+        }
+      }
+
+      // Esperamos a que todos los archivos se suban
+      const uploadResults = await Promise.all(uploadPromises);
+
+      // Adjuntamos la información de Cloudinary a la petición para usarla en el controlador
+      req.cloudinary_files = uploadResults;
+      
+      console.log('✅ All files uploaded to Cloudinary successfully.');
+      next();
+
+    } catch (uploadError) {
+      return res.status(500).json({ message: "Error al subir los archivos a la nube." });
     }
-    
-    next();
   });
 };
 
-// Middleware para un solo archivo (ej. avatar de usuario)
-const singleFileUploadMiddleware = (fieldName) => upload.single(fieldName);
-
 module.exports = {
   projectUploadMiddleware,
-  singleFileUploadMiddleware,
-  upload,
-  UPLOADS_DIR // Exportar para uso en otros archivos
 };

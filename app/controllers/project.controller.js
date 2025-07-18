@@ -1,7 +1,6 @@
 const db = require('../models'); 
-const fs = require("fs");
-const path = require("path");
-const { UPLOADS_DIR } = require('../middleware/uploadFiles');
+
+const cloudinary = require('cloudinary').v2;
 
 // Obtener referencias a los modelos con nombres correctos
 const Proyecto = db.proyectos;
@@ -9,30 +8,49 @@ const User = db.user;
 const Role = db.roles;
 const UserRoles = db.user_roles;
 
-// Crear un nuevo proyecto 
+// --> HELPER: Una función útil para extraer el public_id de una URL de Cloudinary.
+// Esto es necesario para poder eliminar archivos.
+const extractPublicIdFromUrl = (url) => {
+  if (!url) return null;
+  // Ejemplo de URL: http://res.cloudinary.com/cloud_name/resource_type/upload/v12345/folder/public_id.format
+  const urlParts = url.split('/');
+  const publicIdWithFormat = urlParts[urlParts.length - 1];
+  const publicId = publicIdWithFormat.split('.')[0];
+  const folder = urlParts[urlParts.length - 2];
+  return `${folder}/${publicId}`;
+};
+
+/// Crear un nuevo proyecto
 exports.createProject = async (req, res) => {
-  const userId = req.userId; 
-  const { nombreProyecto, descripcion, videoPitch } = req.body; 
+  const userId = req.userId;
+  const { nombreProyecto, descripcion, videoPitch } = req.body;
 
   if (!userId || !nombreProyecto) {
     return res.status(400).send({ message: "User ID and Project Name are required." });
   }
 
-  console.log('📁 Archivos recibidos:', req.files);
-  console.log('📝 Datos del body:', req.body);
-
-  const fichaTecnicaPath = req.files && req.files['fichaTecnica'] ? req.files['fichaTecnica'][0].path : null;
-  const modeloCanvaPath = req.files && req.files['modeloCanva'] ? req.files['modeloCanva'][0].path : null;
-  const pdfProyectoPath = req.files && req.files['pdfProyecto'] ? req.files['pdfProyecto'][0].path : null;
-
-  console.log('📂 Rutas de archivos:');
-  console.log('Ficha técnica:', fichaTecnicaPath);
-  console.log('Modelo Canva:', modeloCanvaPath);
-  console.log('PDF Proyecto:', pdfProyectoPath);
+  // --> CAMBIO: Ya no usamos req.files[...].path. Ahora leemos req.cloudinary_files
+  // que es un array que nuestro middleware ha preparado.
+  const fileUrls = {};
+  if (req.cloudinary_files && req.cloudinary_files.length > 0) {
+    req.cloudinary_files.forEach(file => {
+      // Mapeamos el archivo subido a su campo original basándonos en el public_id
+      // que diseñamos en el middleware (ej: 'fichaTecnica-167...').
+      if (file.public_id.startsWith('proyectos_pdf/fichaTecnica')) {
+        fileUrls.technicalSheet = file.secure_url;
+      }
+      if (file.public_id.startsWith('proyectos_pdf/modeloCanva')) {
+        fileUrls.canvaModel = file.secure_url;
+      }
+      if (file.public_id.startsWith('proyectos_pdf/pdfProyecto')) {
+        fileUrls.projectPdf = file.secure_url;
+      }
+    });
+  }
 
   // Determinar estatus automáticamente
   let estatus = 'no subido';
-  if (fichaTecnicaPath && modeloCanvaPath && pdfProyectoPath) {
+  if (fileUrls.technicalSheet && fileUrls.canvaModel && fileUrls.projectPdf) {
     estatus = 'subido';
   }
 
@@ -42,20 +60,18 @@ exports.createProject = async (req, res) => {
       name: nombreProyecto,
       description: descripcion,
       videoLink: videoPitch,
-      technicalSheet: fichaTecnicaPath,
-      canvaModel: modeloCanvaPath,
-      projectPdf: pdfProyectoPath,
+      // --> CAMBIO: Guardamos las URLs de Cloudinary, no las rutas locales.
+      technicalSheet: fileUrls.technicalSheet || null,
+      canvaModel: fileUrls.canvaModel || null,
+      projectPdf: fileUrls.projectPdf || null,
       estatus
     });
-    
-    console.log('✅ Proyecto creado exitosamente:', project.id);
+
+    console.log('✅ Proyecto creado exitosamente con URLs de Cloudinary:', project.id);
     res.status(201).send({ id: project.id, message: "Project created successfully!", estatus });
   } catch (error) {
     console.error("Error creating project:", error);
-    // Limpiar archivos si hay error
-    if (fichaTecnicaPath && fs.existsSync(fichaTecnicaPath)) fs.unlinkSync(fichaTecnicaPath);
-    if (modeloCanvaPath && fs.existsSync(modeloCanvaPath)) fs.unlinkSync(modeloCanvaPath);
-    if (pdfProyectoPath && fs.existsSync(pdfProyectoPath)) fs.unlinkSync(pdfProyectoPath);
+    // --> CAMBIO: Ya no hay archivos locales que limpiar en caso de error.
     res.status(500).send({ message: error.message || "Some error occurred while creating the project." });
   }
 };
@@ -151,15 +167,16 @@ exports.getProjectsByUserId = async (req, res) => {
 
 // Actualizar un proyecto por ID
 exports.updateProject = async (req, res) => {
-  const { id } = req.params; 
-  const { nombreProyecto, descripcion, videoPitch, estatus } = req.body; 
-  const userId = req.userId; 
+  const { id } = req.params;
+  const { nombreProyecto, descripcion, videoPitch, estatus } = req.body;
+  const userId = req.userId;
 
   try {
     const project = await Proyecto.findByPk(id);
     if (!project) {
       return res.status(404).send({ message: `Project with id ${id} not found.` });
     }
+
 
     // Autorización: solo el dueño o un admin puede editar
     if (project.idUser !== userId) {
@@ -177,44 +194,54 @@ exports.updateProject = async (req, res) => {
       }
   }
 
-  // Manejo de archivos: si se suben nuevos, usar esas rutas, sino mantener las antiguas
-    const fichaTecnicaPath = req.files && req.files['fichaTecnica'] ? req.files['fichaTecnica'][0].path : project.technicalSheet;
-    const modeloCanvaPath = req.files && req.files['modeloCanva'] ? req.files['modeloCanva'][0].path : project.canvaModel;
-    const pdfProyectoPath = req.files && req.files['pdfProyecto'] ? req.files['pdfProyecto'][0].path : project.projectPdf;
+  const updateData = {};
+  if (nombreProyecto !== undefined) updateData.name = nombreProyecto;
+  if (descripcion !== undefined) updateData.description = descripcion;
+  if (videoPitch !== undefined) updateData.videoLink = videoPitch;
+  if (estatus !== undefined) updateData.estatus = estatus;
 
-    const updateData = {};
-    if (nombreProyecto !== undefined) updateData.name = nombreProyecto;
-    if (descripcion !== undefined) updateData.description = descripcion;
-    if (videoPitch !== undefined) updateData.videoLink = videoPitch;
-    if (estatus !== undefined) updateData.estatus = estatus;
-  
-  // Si se subió un nuevo archivo, la ruta ya está en la variable correspondiente
-    if (req.files && req.files['fichaTecnica']) updateData.technicalSheet = fichaTecnicaPath;
-    if (req.files && req.files['modeloCanva']) updateData.canvaModel = modeloCanvaPath;
-    if (req.files && req.files['pdfProyecto']) updateData.projectPdf = pdfProyectoPath;
-  
-    if (Object.keys(updateData).length === 0) {
-    return res.status(400).send({ message: "No fields to update provided." });
+  // --> CAMBIO: Manejo de actualización de archivos con Cloudinary
+  if (req.cloudinary_files && req.cloudinary_files.length > 0) {
+    for (const file of req.cloudinary_files) {
+      let fieldNameInDb = null;
+      let oldFileUrl = null;
+
+      if (file.public_id.startsWith('proyectos_pdf/fichaTecnica')) {
+        fieldNameInDb = 'technicalSheet';
+        oldFileUrl = project.technicalSheet;
+      } else if (file.public_id.startsWith('proyectos_pdf/modeloCanva')) {
+        fieldNameInDb = 'canvaModel';
+        oldFileUrl = project.canvaModel;
+      } else if (file.public_id.startsWith('proyectos_pdf/pdfProyecto')) {
+        fieldNameInDb = 'projectPdf';
+        oldFileUrl = project.projectPdf;
+      }
+
+      if (fieldNameInDb) {
+        // Asignar la nueva URL
+        updateData[fieldNameInDb] = file.secure_url;
+
+        // Si había un archivo antiguo, eliminarlo de Cloudinary
+        if (oldFileUrl) {
+          const publicIdToDelete = extractPublicIdFromUrl(oldFileUrl);
+          if (publicIdToDelete) {
+            console.log(`🗑️ Deleting old file from Cloudinary: ${publicIdToDelete}`);
+            // Hacemos la eliminación sin esperar (fire and forget) para no retrasar la respuesta.
+            cloudinary.uploader.destroy(publicIdToDelete, { resource_type: 'raw' });
+          }
+        }
+      }
+    }
   }
 
-    await project.update(updateData);
-
-    // Eliminar archivos antiguos si se subieron nuevos
-    if (req.files && req.files['fichaTecnica'] && project.technicalSheet && project.technicalSheet !== fichaTecnicaPath && fs.existsSync(project.technicalSheet)) {
-      fs.unlinkSync(project.technicalSheet);
-    }
-
-    res.status(200).send({ message: "Project updated successfully." });
-  } catch (error) {
-    console.error(`Error updating project with id ${id}:`, error);
-
-    if (req.files && req.files['fichaTecnica'] && fs.existsSync(fichaTecnicaPath) && fichaTecnicaPath !== project.technicalSheet) {
-      fs.unlinkSync(fichaTecnicaPath);
-    }
-
-    res.status(500).send({ message: error.message || "Error updating project." });
-  }
+  await project.update(updateData);
+  res.status(200).send({ message: "Project updated successfully." });
+} catch (error) {
+  console.error(`Error updating project with id ${id}:`, error);
+  res.status(500).send({ message: error.message || "Error updating project." });
+}
 };
+
 
 // Eliminar un proyecto por ID
 exports.deleteProject = async (req, res) => {
@@ -242,15 +269,24 @@ exports.deleteProject = async (req, res) => {
       }
     }
 
-    // Eliminar archivos asociados
-    if (project.technicalSheet && fs.existsSync(project.technicalSheet)) {
-      fs.unlinkSync(project.technicalSheet);
-    }
-    if (project.canvaModel && fs.existsSync(project.canvaModel)) {
-      fs.unlinkSync(project.canvaModel);
-    }
-    if (project.projectPdf && fs.existsSync(project.projectPdf)) {
-      fs.unlinkSync(project.projectPdf);
+    
+    // --> CAMBIO: Eliminar archivos de Cloudinary antes de eliminar el proyecto.
+    const filesToDelete = [
+      project.technicalSheet,
+      project.canvaModel,
+      project.projectPdf
+    ].filter(url => url); // Filtra para solo tener URLs válidas
+
+    if (filesToDelete.length > 0) {
+      const deletePromises = filesToDelete.map(url => {
+        const publicId = extractPublicIdFromUrl(url);
+        if (publicId) {
+          console.log(`🗑️ Deleting project file from Cloudinary: ${publicId}`);
+          return cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+        }
+        return Promise.resolve();
+      });
+      await Promise.all(deletePromises);
     }
 
     await project.destroy();
@@ -263,118 +299,41 @@ exports.deleteProject = async (req, res) => {
 
 // Descargar archivo de proyecto
 exports.downloadProjectFile = async (req, res) => {
-  const { projectId, fileType } = req.params; 
-
-  console.log(`📥 Solicitud de descarga: Proyecto ${projectId}, Archivo ${fileType}`);
-  console.log(`📁 Upload directory: ${UPLOADS_DIR}`);
+  const { projectId, fileType } = req.params;
 
   try {
     const project = await Proyecto.findByPk(projectId);
     if (!project) {
-      console.log(`❌ Proyecto ${projectId} no encontrado`);
       return res.status(404).send({ message: "Project not found." });
     }
 
-    console.log(`✅ Proyecto encontrado: "${project.name}"`);
-
-    let filePath = null;
-    let fileName = '';
+    // --> CAMBIO RADICAL: La lógica es mucho más simple ahora.
+    let fileUrl = null;
 
     switch (fileType) {
       case 'technicalSheet':
-        filePath = project.technicalSheet;
-        fileName = `ficha_tecnica_${project.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        fileUrl = project.technicalSheet;
         break;
       case 'canvaModel':
-        filePath = project.canvaModel;
-        fileName = `modelo_canvas_${project.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        fileUrl = project.canvaModel;
         break;
       case 'projectPdf':
-        filePath = project.projectPdf;
-        fileName = `proyecto_${project.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+        fileUrl = project.projectPdf;
         break;
       default:
-        console.log(`❌ Tipo de archivo inválido: ${fileType}`);
         return res.status(400).send({ message: "Invalid file type." });
     }
 
-    console.log(`📁 Ruta del archivo en BD: ${filePath}`);
-    console.log(`📄 Nombre del archivo: ${fileName}`);
-
-    if (!filePath) {
-      console.log(`❌ No hay ruta configurada para ${fileType}`);
-      return res.status(404).send({ message: `No file path configured for ${fileType}.` });
+    if (!fileUrl) {
+      return res.status(404).send({ message: "File not found for this project." });
     }
 
-    // Estrategia mejorada para encontrar el archivo
-    let absolutePath = null;
-    
-    // Opción 1: Verificar si la ruta absoluta existe
-    if (path.isAbsolute(filePath) && fs.existsSync(filePath)) {
-      absolutePath = filePath;
-      console.log(`✅ Archivo encontrado en ruta absoluta: ${absolutePath}`);
-    }
-    // Opción 2: Buscar por nombre de archivo en el directorio de uploads
-    else {
-      const fileNameFromPath = path.basename(filePath);
-      const uploadsPath = path.join(UPLOADS_DIR, fileNameFromPath);
-      
-      if (fs.existsSync(uploadsPath)) {
-        absolutePath = uploadsPath;
-        console.log(`✅ Archivo encontrado en uploads: ${absolutePath}`);
-      } else {
-        console.log(`❌ Archivo no encontrado: ${fileNameFromPath}`);
-        
-        // Opción 3: Buscar archivos similares en el directorio de uploads
-        try {
-          const files = fs.readdirSync(UPLOADS_DIR);
-          console.log(`📄 Archivos disponibles en ${UPLOADS_DIR}:`, files);
-          
-          // Buscar archivos que coincidan con el tipo de archivo
-          const fileTypePatterns = {
-            'technicalSheet': ['ficha', 'technical', 'sheet'],
-            'canvaModel': ['canva', 'canvas', 'model'],
-            'projectPdf': ['proyecto', 'project', 'pdf', 'resumen']
-          };
-          
-          const patterns = fileTypePatterns[fileType] || [];
-          const matchingFiles = files.filter(file => 
-            patterns.some(pattern => file.toLowerCase().includes(pattern))
-          );
-          
-          if (matchingFiles.length > 0) {
-            absolutePath = path.join(UPLOADS_DIR, matchingFiles[0]);
-            console.log(`✅ Usando archivo similar: ${matchingFiles[0]}`);
-          } else {
-            console.log(`❌ No se encontraron archivos similares para ${fileType}`);
-          }
-        } catch (error) {
-          console.log(`❌ Error listando archivos: ${error.message}`);
-        }
-      }
-    }
+    // --> En lugar de res.download(), simplemente redirigimos al cliente a la URL de Cloudinary.
+    console.log(`➡️ Redirecting user to Cloudinary URL: ${fileUrl}`);
+    res.redirect(302, fileUrl);
 
-    if (!absolutePath || !fs.existsSync(absolutePath)) {
-      console.log(`❌ No se pudo encontrar el archivo para ${fileType}`);
-      return res.status(404).send({ 
-        message: "File not found on disk.",
-        details: `Could not locate ${fileType} for project ${projectId}`
-      });
-    }
-
-    console.log(`✅ Archivo encontrado, iniciando descarga: ${absolutePath}`);
-    
-    // Verificar que el archivo es legible
-    try {
-      fs.accessSync(absolutePath, fs.constants.R_OK);
-    } catch (error) {
-      console.error(`❌ Archivo no es legible: ${absolutePath}`);
-      return res.status(500).send({ message: "File is not readable." });
-    }
-    
-    res.download(absolutePath, fileName);
   } catch (error) {
-    console.error("❌ Error downloading project file:", error);
-    res.status(500).send({ message: "Error downloading file." });
+    console.error("❌ Error processing download request:", error);
+    res.status(500).send({ message: "Error processing file download." });
   }
 };

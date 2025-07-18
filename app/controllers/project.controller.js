@@ -66,7 +66,17 @@ exports.createProject = async (req, res) => {
   if (fileUrls.technicalSheet && fileUrls.canvaModel && fileUrls.projectPdf) {
     estatus = 'subido';
   }
-
+  console.log('Datos a guardar en la BD:', {
+    idUser: userId,
+    name: nombreProyecto,
+    description: descripcion,
+    videoLink: videoPitch,
+    technicalSheet: fileUrls.technicalSheet,
+    canvaModel: fileUrls.canvaModel,
+    projectPdf: fileUrls.projectPdf,
+    estatus
+  }); 
+  
   try {
     const project = await Proyecto.create({
       idUser: userId,

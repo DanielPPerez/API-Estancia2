@@ -376,6 +376,105 @@ exports.exportDatabaseToExcel = async (req, res) => {
   }
 };
 
+/**
+ * Exporta todas las calificaciones a un archivo Excel, incluyendo los nombres
+ * del evaluador, alumno y proyecto.
+ */
+exports.exportCalificacionesToExcel = async (req, res) => {
+  try {
+    // 1. Obtener los datos con las relaciones incluidas (¡ESTA ES LA CLAVE!)
+    const calificaciones = await db.calificaciones.findAll({
+      include: [
+        {
+          model: db.proyecto,
+          as: 'proyecto', // Debe coincidir con el alias en el modelo calificacion
+          attributes: ['name']
+        },
+        {
+          model: db.user,
+          as: 'evaluador', // Debe coincidir con el alias en el modelo calificacion
+          attributes: ['nombre', 'username'] // Obtenemos el nombre y/o username
+        },
+        {
+          model: db.user,
+          as: 'alumno', // Debe coincidir con el alias en el modelo calificacion
+          attributes: ['nombre', 'username'] // Obtenemos el nombre y/o username
+        }
+      ],
+      order: [
+        ['proyectoId', 'ASC'],
+        ['userEvaluadorId', 'ASC']
+      ]
+    });
+
+    // 2. Preparar los datos para el formato de Excel
+    const dataForExcel = calificaciones.map(c => ({
+      id: c.id,
+      proyectoId: c.proyectoId,
+      // Usamos optional chaining (?.) para evitar errores si una relación es nula
+      proyecto: c.proyecto?.name || 'N/A', 
+      userEvaluadorId: c.userEvaluadorId,
+      evaluador: c.evaluador?.nombre || c.evaluador?.username || 'N/A', // Priorizamos nombre, si no, username
+      userAlumnoId: c.userAlumnoId,
+      alumno: c.alumno?.nombre || c.alumno?.username || 'N/A', // Priorizamos nombre, si no, username
+      innovacion: c.innovacion,
+      mercado: c.mercado,
+      tecnica: c.tecnica,
+      financiera: c.financiera,
+      pitch: c.pitch,
+      total: c.total,
+      observaciones: c.observaciones,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }));
+
+    // 3. Crear el libro y la hoja de Excel
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Calificaciones");
+
+    worksheet.columns = [
+      { header: "ID Calificación", key: "id", width: 15 },
+      { header: "Proyecto", key: "proyecto", width: 30 },
+      { header: "Evaluador", key: "evaluador", width: 30 },
+      { header: "Alumno", key: "alumno", width: 30 },
+      { header: "Innovación", key: "innovacion", width: 15 },
+      { header: "Mercado", key: "mercado", width: 15 },
+      { header: "Técnica", key: "tecnica", width: 15 },
+      { header: "Financiera", key: "financiera", width: 15 },
+      { header: "Pitch", key: "pitch", width: 15 },
+      { header: "Total", key: "total", width: 15 },
+      { header: "Observaciones", key: "observaciones", width: 40 },
+      { header: "ID Proyecto", key: "proyectoId", width: 15 },
+      { header: "ID Evaluador", key: "userEvaluadorId", width: 15 },
+      { header: "ID Alumno", key: "userAlumnoId", width: 15 },
+      { header: "Fecha Creación", key: "createdAt", width: 20 },
+    ];
+    
+    // Poner la fila de cabecera en negrita
+    worksheet.getRow(1).font = { bold: true };
+    
+    // Añadir los datos
+    worksheet.addRows(dataForExcel);
+
+    // 4. Enviar el archivo al cliente
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="calificaciones_${Date.now()}.xlsx"`
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error("Error exporting calificaciones to Excel:", error);
+    res.status(500).send({ message: "Failed to export data to Excel.", error: error.message });
+  }
+};
+
 // --- IMPORTACIÓN DESDE EXCEL Y ACTUALIZACIÓN ---
 
 // Función auxiliar para procesar una hoja e intentar actualizar/insertar en una tabla

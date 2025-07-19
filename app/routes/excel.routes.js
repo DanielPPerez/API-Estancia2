@@ -20,6 +20,13 @@ module.exports = function(app) {
     controller.exportDatabaseToExcel
   );
 
+  // Exportar específicamente las calificaciones con nombres de proyecto, evaluador y alumno
+  app.get(
+    "/api/excel/export/calificaciones",
+    [authJwt.verifyToken, authJwt.isAdmin], // Proteger la ruta para que solo admins puedan exportar todo
+    controller.exportCalificacionesToExcel
+  );
+
   // Importar desde Excel y actualizar la base de datos
   // Proteger esta ruta, usualmente solo para admins
   app.post(

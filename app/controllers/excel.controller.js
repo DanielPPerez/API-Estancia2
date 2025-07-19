@@ -272,17 +272,69 @@ async function addSheetFromTable(workbook, tableName) {
       return;
     }
     
-    const rows = await model.findAll();
-    if (rows.length > 0) {
-      // Añadir cabeceras (nombres de columnas)
-      const headers = Object.keys(rows[0].dataValues);
-      sheet.columns = headers.map(header => ({ header, key: header, width: 20 }));
-      // Añadir filas de datos
-      sheet.addRows(rows.map(row => row.dataValues));
+    // Si la tabla es calificaciones, incluir relaciones y nombres
+    if (tableName === 'calificaciones') {
+      const rows = await model.findAll({
+        include: [
+          {
+            model: db.proyectos,
+            as: 'proyecto',
+            attributes: ['name']
+          },
+          {
+            model: db.user,
+            as: 'evaluador',
+            attributes: ['username']
+          },
+          {
+            model: db.user,
+            as: 'alumno',
+            attributes: ['username']
+          }
+        ]
+      });
+      if (rows.length > 0) {
+        // Cabeceras originales
+        const baseHeaders = Object.keys(rows[0].dataValues);
+        // Insertar después de los IDs los nombres relacionados
+        const headers = [...baseHeaders];
+        // Insertar después de proyectoId
+        const idxProyecto = headers.indexOf('proyectoId');
+        if (idxProyecto !== -1) headers.splice(idxProyecto + 1, 0, 'proyecto');
+        // Insertar después de userEvaluadorId
+        const idxEval = headers.indexOf('userEvaluadorId');
+        if (idxEval !== -1) headers.splice(idxEval + 1, 0, 'evaluador');
+        // Insertar después de userAlumnoId
+        const idxAlumno = headers.indexOf('userAlumnoId');
+        if (idxAlumno !== -1) headers.splice(idxAlumno + 1, 0, 'alumno');
+        sheet.columns = headers.map(header => ({ header, key: header, width: 20 }));
+        // Agregar filas con los nombres
+        rows.forEach(row => {
+          const data = { ...row.dataValues };
+          // Agregar los nombres relacionados
+          data.proyecto = row.proyecto ? row.proyecto.name : '';
+          data.evaluador = row.evaluador ? row.evaluador.username : '';
+          data.alumno = row.alumno ? row.alumno.username : '';
+          // Construir la fila en el mismo orden que headers
+          const rowArray = headers.map(h => data[h] !== undefined ? data[h] : '');
+          sheet.addRow(rowArray);
+        });
+      } else {
+        sheet.addRow([`No data found in table ${tableName}`]);
+      }
+      console.log(`Data from table ${tableName} (with relations) added to Excel sheet.`);
     } else {
-      sheet.addRow([`No data found in table ${tableName}`]);
+      // Comportamiento original para otras tablas
+      const rows = await model.findAll();
+      if (rows.length > 0) {
+        const headers = Object.keys(rows[0].dataValues);
+        sheet.columns = headers.map(header => ({ header, key: header, width: 20 }));
+        sheet.addRows(rows.map(row => row.dataValues));
+      } else {
+        sheet.addRow([`No data found in table ${tableName}`]);
+      }
+      console.log(`Data from table ${tableName} added to Excel sheet.`);
     }
-    console.log(`Data from table ${tableName} added to Excel sheet.`);
   } catch (error) {
     console.error(`Error fetching data from table ${tableName}:`, error);
     sheet.addRow([`Error fetching data from table ${tableName}: ${error.message}`]);

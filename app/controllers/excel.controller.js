@@ -277,17 +277,17 @@ async function addSheetFromTable(workbook, tableName) {
       const rows = await model.findAll({
         include: [
           {
-            model: db.proyectos,
+            model: db.proyecto,
             as: 'proyecto',
             attributes: ['name']
           },
           {
-            model: db.user,
+            model: db.users,
             as: 'evaluador',
             attributes: ['username']
           },
           {
-            model: db.user,
+            model: db.users,
             as: 'alumno',
             attributes: ['username']
           }

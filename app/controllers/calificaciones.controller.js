@@ -92,7 +92,7 @@ exports.getAllCalificaciones = async (req, res) => {
     const calificaciones = await db.calificaciones.findAll({
       include: [
         {
-          model: db.proyecto,
+          model: db.projects,
           as: 'proyecto',
           attributes: ['name']
         },
@@ -148,7 +148,7 @@ exports.getCalificacionesByEvaluadorId = async (req, res) => {
       where: { userEvaluadorId: evaluadorId },
       include: [
         {
-          model: db.proyecto,
+          model: db.projects,
           as: 'proyecto',
           attributes: ['name']
         },

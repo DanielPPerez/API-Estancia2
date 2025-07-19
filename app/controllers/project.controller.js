@@ -3,7 +3,7 @@ const cloudinary = require('cloudinary').v2;
 const db = require('../models');
 
 // Se obtienen las referencias a los modelos de la base de datos.
-const Proyecto = db.proyectos;
+const Proyecto = db.projects;
 const User = db.user;
 const Role = db.roles;
 const UserRoles = db.user_roles;

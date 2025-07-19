@@ -277,7 +277,7 @@ async function addSheetFromTable(workbook, tableName) {
       const rows = await model.findAll({
         include: [
           {
-            model: db.proyecto,
+            model: db.projects,
             as: 'proyecto',
             attributes: ['name']
           },
@@ -386,7 +386,7 @@ exports.exportCalificacionesToExcel = async (req, res) => {
     const calificaciones = await db.calificaciones.findAll({
       include: [
         {
-          model: db.proyecto,
+          model: db.projects,
           as: 'proyecto', // Debe coincidir con el alias en el modelo calificacion
           attributes: ['name']
         },

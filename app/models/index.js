@@ -75,14 +75,14 @@ if (db.role && !db.roles) {
   console.log("🔄 Alias creado: db.roles = db.role");
 }
 
-if (db.proyectos && !db.proyecto) {
-  db.proyecto = db.proyectos;
-  console.log("🔄 Alias creado: db.proyecto = db.proyectos");
+if (db.projects && !db.proyecto) {
+  db.proyecto = db.projects;
+  console.log("🔄 Alias creado: db.proyecto = db.projects");
 }
 
-if (db.proyectos && !db.projects) {
-  db.projects = db.proyectos;
-  console.log("🔄 Alias creado: db.projects = db.proyectos");
+if (db.projects && !db.proyectos) {
+  db.proyectos = db.projects;
+  console.log("🔄 Alias creado: db.proyectos = db.projects");
 }
 
 if (db.refreshToken && !db.refreshTokens) {

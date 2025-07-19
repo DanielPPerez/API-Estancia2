@@ -92,17 +92,17 @@ exports.getAllCalificaciones = async (req, res) => {
     const calificaciones = await db.calificaciones.findAll({
       include: [
         {
-          model: db.proyectos,
+          model: db.proyecto,
           as: 'proyecto',
           attributes: ['name']
         },
         {
-          model: db.user,
+          model: db.users,
           as: 'evaluador',
           attributes: ['username']
         },
         {
-          model: db.user,
+          model: db.users,
           as: 'alumno',
           attributes: ['username']
         }
@@ -124,7 +124,7 @@ exports.getCalificacionesByProyectoId = async (req, res) => {
       where: { proyectoId },
       include: [
         {
-          model: db.user,
+          model: db.users,
           as: 'evaluador',
           attributes: ['username', 'nombre']
         }
@@ -148,12 +148,12 @@ exports.getCalificacionesByEvaluadorId = async (req, res) => {
       where: { userEvaluadorId: evaluadorId },
       include: [
         {
-          model: db.proyectos,
+          model: db.proyecto,
           as: 'proyecto',
           attributes: ['name']
         },
         {
-          model: db.user,
+          model: db.users,
           as: 'alumno',
           attributes: ['username', 'nombre']
         }
